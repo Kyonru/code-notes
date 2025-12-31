@@ -1,8 +1,8 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
-import { NOTES_DIR } from "./constants";
 import { createCommandName, getLineFromOffset } from "./utils";
+import { NoteReference } from "./types";
 
 export class NoteItem extends vscode.TreeItem {
   constructor(
@@ -27,6 +27,8 @@ export class NoteItem extends vscode.TreeItem {
 
 // Tree view data provider
 export class NotesTreeProvider implements vscode.TreeDataProvider<NoteItem> {
+  constructor(private readonly context: vscode.ExtensionContext) {}
+
   private _onDidChangeTreeData: vscode.EventEmitter<
     NoteItem | undefined | null | void
   > = new vscode.EventEmitter<NoteItem | undefined | null | void>();
@@ -43,6 +45,8 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteItem> {
   }
 
   getChildren(element?: NoteItem): Thenable<NoteItem[]> {
+    const NOTES_DIR = this.context.globalStorageUri.fsPath;
+
     if (!fs.existsSync(NOTES_DIR)) {
       return Promise.resolve([]);
     }
@@ -57,6 +61,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteItem> {
   }
 
   private getNoteFiles(): NoteItem[] {
+    const NOTES_DIR = this.context.globalStorageUri.fsPath;
     const files = fs
       .readdirSync(NOTES_DIR)
       .filter((f) => f.endsWith(".md"))
@@ -84,6 +89,11 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteItem> {
     // Match sections like "## filename.ts:123"
     const sectionRegex = /## (.+?):(\d+)/g;
     let match;
+
+    const noteIndex =
+      this.context.workspaceState.get<Record<string, NoteReference>>(
+        "noteIndex"
+      ) || {};
 
     while ((match = sectionRegex.exec(content)) !== null) {
       const fileName = match[1];
@@ -128,8 +138,20 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteItem> {
         arguments: [relativePath, parseInt(lineNumber), filePath, markdownLine],
       };
 
+      noteIndex[`@${fileName}:${relativePath}:${lineNumber}`] = {
+        noteName: fileName,
+        notePath: filePath,
+        noteLine: markdownLine,
+        file: relativePath,
+        line: parseInt(lineNumber),
+      };
+
       sections.push(item);
     }
+
+    console.log("kyonru noteIndex", noteIndex);
+
+    this.context.workspaceState.update("noteIndex", noteIndex);
 
     return sections;
   }

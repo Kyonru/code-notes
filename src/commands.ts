@@ -4,13 +4,17 @@ import * as fs from "fs";
 
 import { NoteItem, NotesTreeProvider } from "./treeView";
 import { createCommandName } from "./utils";
-import { NOTES_DIR } from "./constants";
+import { NotesCodeLensProvider } from "./codelens";
 
-export function gerRefreshTreeCommand(notesTreeProvider: NotesTreeProvider) {
+export function gerRefreshTreeCommand(
+  notesTreeProvider: NotesTreeProvider,
+  provider: NotesCodeLensProvider
+) {
   return vscode.commands.registerCommand(
     createCommandName("refreshTree"),
     () => {
       notesTreeProvider.refresh();
+      provider.refresh();
     }
   );
 }
@@ -22,6 +26,8 @@ export function getCreateNoteCommand(
   return vscode.commands.registerCommand(
     createCommandName("createNote"),
     async () => {
+      const NOTES_DIR = context.globalStorageUri.fsPath;
+
       const noteName = await vscode.window.showInputBox({
         prompt: "Enter note name",
         placeHolder: "my-note",
@@ -57,6 +63,7 @@ export function getSelectNoteCommand(
   return vscode.commands.registerCommand(
     createCommandName("selectNote"),
     async () => {
+      const NOTES_DIR = context.globalStorageUri.fsPath;
       const files = fs.readdirSync(NOTES_DIR).filter((f) => f.endsWith(".md"));
 
       if (files.length === 0) {
@@ -71,6 +78,8 @@ export function getSelectNoteCommand(
       });
 
       if (selected) {
+        const NOTES_DIR = context.globalStorageUri.fsPath;
+
         const currentNote = path.join(NOTES_DIR, selected);
         context.workspaceState.update("currentNote", currentNote);
         notesTreeProvider.refresh();
@@ -115,7 +124,6 @@ export function getAddReferenceCommand(
       const selectedText = document.getText(selection);
       const lineNumber = selection.start.line + 1;
       const fileName = path.basename(document.fileName);
-      // const relativePath = vscode.workspace.asRelativePath(document.fileName);
 
       // Get optional annotation text
       const annotation = await vscode.window.showInputBox({
@@ -244,10 +252,11 @@ export function getViewNoteCommand(context: vscode.ExtensionContext) {
   );
 }
 
-export function getOpenNotesDirCommand() {
+export function getOpenNotesDirCommand(context: vscode.ExtensionContext) {
   return vscode.commands.registerCommand(
     createCommandName("openNotesDir"),
     () => {
+      const NOTES_DIR = context.globalStorageUri.fsPath;
       vscode.env.openExternal(vscode.Uri.file(NOTES_DIR));
     }
   );
@@ -287,24 +296,6 @@ export function getDeleteNoteCommand(
 }
 
 export function getViewNoteAtCommand() {
-  // return vscode.commands.registerCommand(
-  //   createCommandName("viewNoteAt"),
-  //   async (filePath: string, lineNumber: number) => {
-  //     const doc = await vscode.workspace.openTextDocument(filePath);
-  //     await vscode.window.showTextDocument(doc);
-  //     const editor = await vscode.window.showTextDocument(doc, {
-  //       viewColumn: vscode.ViewColumn.Beside,
-  //       preview: false,
-  //     });
-  //     const position = new vscode.Position(lineNumber - 1, 0);
-  //     editor.selection = new vscode.Selection(position, position);
-  //     editor.revealRange(
-  //       new vscode.Range(position, position),
-  //       vscode.TextEditorRevealType.InCenter
-  //     );
-  //   }
-  // );
-
   return vscode.commands.registerCommand(
     createCommandName("viewNoteAt"),
     async (notePath: string, noteLine: number) => {
