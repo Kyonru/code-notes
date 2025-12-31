@@ -92,8 +92,7 @@ export function activate(context: vscode.ExtensionContext) {
     statusBarItem
   );
 
-  notesTreeProvider.refresh();
-  provider.refresh();
+  vscode.commands.executeCommand(createCommandName("refreshTree"));
 }
 
 export function deactivate() {}

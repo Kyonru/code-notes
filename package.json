@@ -1,8 +1,12 @@
 {
-  "name": "solenodontelabs-codenotes",
-  "displayName": "codenotes",
-  "description": "An extension to help taking note accross the codebase",
-  "version": "0.0.1",
+  "name": "codenotes",
+  "displayName": "Code Notes",
+  "sponsor": {
+    "url": "https://github.com/sponsors/kyonru"
+  },
+  "description": "An extension to help taking note across the codebase",
+  "version": "0.1.0",
+  "publisher": "SolenodonteLabs",
   "engines": {
     "vscode": "^1.107.0"
   },
@@ -18,14 +22,14 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "solenodontelabs-codenotes",
+          "id": "codenotes",
           "title": "Code Notes",
           "icon": "$(notebook)"
         }
       ]
     },
     "views": {
-      "solenodontelabs-codenotes": [
+      "codenotes": [
         {
           "id": "codeNotesView",
           "name": ""
@@ -34,68 +38,68 @@
     },
     "commands": [
       {
-        "command": "solenodontelabs-codenotes.createNote",
+        "command": "codenotes.createNote",
         "title": "Code Notes: Create Note",
         "icon": "$(new-file)"
       },
       {
-        "command": "solenodontelabs-codenotes.selectNote",
+        "command": "codenotes.selectNote",
         "title": "Code Notes: Select Note"
       },
       {
-        "command": "solenodontelabs-codenotes.addReference",
+        "command": "codenotes.addReference",
         "title": "Code Notes: Add Reference"
       },
       {
-        "command": "solenodontelabs-codenotes.goToReference",
+        "command": "codenotes.goToReference",
         "title": "Code Notes: Go to Reference"
       },
       {
-        "command": "solenodontelabs-codenotes.viewNote",
+        "command": "codenotes.viewNote",
         "title": "Code Notes: View Note",
         "icon": "$(open-preview)"
       },
       {
-        "command": "solenodontelabs-codenotes.openNotesDir",
+        "command": "codenotes.openNotesDir",
         "title": "Code Notes: Open Notes Directory",
         "icon": "$(folder)"
       },
       {
-        "command": "solenodontelabs-codenotes.deleteNote",
+        "command": "codenotes.deleteNote",
         "title": "Code Notes: Delete Note",
         "icon": "$(trash)"
       },
       {
-        "command": "solenodontelabs-codenotes.refreshTree",
+        "command": "codenotes.refreshTree",
         "title": "Code Notes: Refresh Tree",
         "icon": "$(refresh)"
       },
       {
-        "command": "solenodontelabs-codenotes.openNoteFromTree",
+        "command": "codenotes.openNoteFromTree",
         "title": "Code Notes: Open Note from Tree",
         "icon": "$(open-preview)"
       },
       {
-        "command": "solenodontelabs-codenotes.viewNoteAt",
+        "command": "codenotes.viewNoteAt",
         "title": "Code Notes: View Note at"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "solenodontelabs-codenotes.refreshTree",
+          "command": "codenotes.refreshTree",
           "when": "view == codeNotesView",
           "title": "Refresh",
           "group": "navigation"
         },
         {
-          "command": "solenodontelabs-codenotes.createNote",
+          "command": "codenotes.createNote",
           "title": "New Note",
           "when": "view == codeNotesView",
           "group": "navigation"
         },
         {
-          "command": "solenodontelabs-codenotes.openNotesDir",
+          "command": "codenotes.openNotesDir",
           "title": "Open Notes Directory",
           "when": "view == codeNotesView",
           "group": "navigation"
@@ -103,12 +107,12 @@
       ],
       "view/item/context": [
         {
-          "command": "solenodontelabs-codenotes.openNoteFromTree",
+          "command": "codenotes.openNoteFromTree",
           "when": "view == codeNotesView && viewItem == note",
           "group": "inline"
         },
         {
-          "command": "solenodontelabs-codenotes.deleteNote",
+          "command": "codenotes.deleteNote",
           "when": "view == codeNotesView && viewItem == note",
           "group": "inline"
         }

@@ -47,7 +47,7 @@ export function getCreateNoteCommand(
           vscode.window.showInformationMessage(`Created note: ${fileName}`);
         }
 
-        notesTreeProvider.refresh();
+        await vscode.commands.executeCommand(createCommandName("refreshTree"));
         const doc = await vscode.workspace.openTextDocument(filePath);
         await vscode.window.showTextDocument(doc);
       }
@@ -82,7 +82,7 @@ export function getSelectNoteCommand(
 
         const currentNote = path.join(NOTES_DIR, selected);
         context.workspaceState.update("currentNote", currentNote);
-        notesTreeProvider.refresh();
+        await vscode.commands.executeCommand(createCommandName("refreshTree"));
         const doc = await vscode.workspace.openTextDocument(currentNote);
         await vscode.window.showTextDocument(doc);
       }
@@ -148,8 +148,7 @@ export function getAddReferenceCommand(
       // Append to note
       fs.appendFileSync(currentNote, entry);
 
-      notesTreeProvider.refresh();
-
+      await vscode.commands.executeCommand(createCommandName("refreshTree"));
       const result = await vscode.window.showInformationMessage(
         "Reference added to note!",
         "View Note"
@@ -288,7 +287,8 @@ export function getDeleteNoteCommand(
           context.workspaceState.update("currentNote", undefined);
           callback();
         }
-        notesTreeProvider.refresh();
+
+        await vscode.commands.executeCommand(createCommandName("refreshTree"));
         vscode.window.showInformationMessage("Note deleted");
       }
     }
