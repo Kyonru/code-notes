@@ -1,71 +1,123 @@
-# solenodontelabs-codenotes README
+# Code Notes 📝
 
-This is the README for your extension "solenodontelabs-codenotes". After writing up a brief description, we recommend including the following sections.
+Code Notes is a VS Code extension that lets you take structured notes across your codebase and quickly jump between code and the notes that describe it.
 
-## Features
+It’s built for developers who:
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+- Leave TODOs but never find them again
 
-For example if there is an image subfolder under your extension project workspace:
+- Keep random markdown files with scattered annotations
 
-\!\[feature X\]\(images/feature-x.png\)
+- Review large codebases and want organized context
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+- Work in teams and want traceable, navigable notes
 
-## Requirements
+- Code Notes gives you a dedicated sidebar to manage notes, reference exact files + lines, preview content, and jump back into the code instantly.
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+## ✨ Features
 
-## Extension Settings
+### 📂 Notes Sidebar View
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+- Browse all notes
 
-For example:
+- Open, preview, and delete notes
 
-This extension contributes the following settings:
+- Refresh with one click
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+### 🧭 Code References
 
-## Known Issues
+- Attach notes to specific files + line numbers
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+- Jump directly back to referenced code
 
-## Release Notes
+- Works great for reviews, onboarding, debugging, refactoring
 
-Users appreciate release notes as you update your extension.
+### ✍️ Simple Markdown Notes
 
-### 1.0.0
+- Notes are stored as readable Markdown
 
-Initial release of ...
+- Easy to version, sync, and share
 
-### 1.0.1
+- You own your notes (no database, no vendor lock)
 
-Fixed issue #.
+### ⚡ Fast Navigation
 
-### 1.1.0
+- Open notes from the tree view
 
-Added features X, Y, and Z.
+- Open associated code reference in one click
 
----
+### 📸 UI Overview
 
-## Following extension guidelines
+> Screenshots coming soon
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+- Activity Bar → Code Notes
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+- Sidebar tree listing all your notes
 
-## Working with Markdown
+- Commands available in the view header & context menu
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+## 🚀 Getting Started
 
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+### Installation
 
-## For more information
+Install from VS Code Marketplace (coming soon)
+or
 
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+Clone the repo & run:
 
-**Enjoy!**
+```bash
+npm install
+npm run watch
+```
+
+Then press F5 to launch the extension dev host.
+
+## 🎯 Core Commands
+
+| Command                            | Description                                     |
+| ---------------------------------- | ----------------------------------------------- |
+| `Code Notes: Create Note`          | Create a new note                               |
+| `Code Notes: Select Note`          | Switch the active note                          |
+| `Code Notes: Add Reference`        | Attach a code reference to a note               |
+| `Code Notes: Go to Reference`      | Jump to referenced file + line                  |
+| `Code Notes: View Note`            | Open preview of current note                    |
+| `Code Notes: Open Notes Directory` | Open storage folder for notes                   |
+| `Code Notes: Delete Note`          | Remove note                                     |
+| `Code Notes: Refresh Tree`         | Reload notes list                               |
+| `Code Notes: Open Note from Tree`  | Open by clicking tree item                      |
+| `Code Notes: View Note at`         | View note related to current cursor (if exists) |
+
+You’ll find most actions in:
+
+- Command Palette (Cmd/Ctrl + Shift + P)
+- Code Notes sidebar
+- Tree item right-click menus
+
+## 🗂️ Where are notes stored?
+
+Notes are stored locally in a Markdown directory (managed by the extension).
+
+They’re human readable and version-control friendly.
+
+## 🔧 Roadmap
+
+Planned improvements include:
+
+- Search & filtering
+
+- Workspace-shared notes option
+
+- Inline commenting UX
+
+- Multiple notes per line
+
+If you have ideas or feature requests, open an issue!
+
+## ❤️ Sponsor
+
+If this helps your workflow, consider sponsoring:
+👉 https://github.com/sponsors/kyonru
+
+## 🏷️ License
+
+MIT — feel free to hack, extend, and share.
