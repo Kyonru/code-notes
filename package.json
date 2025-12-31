@@ -1,6 +1,6 @@
 {
-  "name": "codenotes",
-  "displayName": "Code Notes",
+  "name": "crosscodenotes",
+  "displayName": "Codebase Notebook",
   "sponsor": {
     "url": "https://github.com/sponsors/kyonru"
   },
@@ -16,20 +16,31 @@
   "capabilities": {
     "dynamicRegistration": true
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Kyonru/code-notes.git"
+  },
+  "keywords": [
+    "note",
+    "comment",
+    "line",
+    "markdown",
+    "documentation"
+  ],
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "codenotes",
+          "id": "crosscodenotes",
           "title": "Code Notes",
           "icon": "$(notebook)"
         }
       ]
     },
     "views": {
-      "codenotes": [
+      "crosscodenotes": [
         {
           "id": "codeNotesView",
           "name": ""
@@ -38,68 +49,68 @@
     },
     "commands": [
       {
-        "command": "codenotes.createNote",
+        "command": "crosscodenotes.createNote",
         "title": "Code Notes: Create Note",
         "icon": "$(new-file)"
       },
       {
-        "command": "codenotes.selectNote",
+        "command": "crosscodenotes.selectNote",
         "title": "Code Notes: Select Note"
       },
       {
-        "command": "codenotes.addReference",
+        "command": "crosscodenotes.addReference",
         "title": "Code Notes: Add Reference"
       },
       {
-        "command": "codenotes.goToReference",
+        "command": "crosscodenotes.goToReference",
         "title": "Code Notes: Go to Reference"
       },
       {
-        "command": "codenotes.viewNote",
+        "command": "crosscodenotes.viewNote",
         "title": "Code Notes: View Note",
         "icon": "$(open-preview)"
       },
       {
-        "command": "codenotes.openNotesDir",
+        "command": "crosscodenotes.openNotesDir",
         "title": "Code Notes: Open Notes Directory",
         "icon": "$(folder)"
       },
       {
-        "command": "codenotes.deleteNote",
+        "command": "crosscodenotes.deleteNote",
         "title": "Code Notes: Delete Note",
         "icon": "$(trash)"
       },
       {
-        "command": "codenotes.refreshTree",
+        "command": "crosscodenotes.refreshTree",
         "title": "Code Notes: Refresh Tree",
         "icon": "$(refresh)"
       },
       {
-        "command": "codenotes.openNoteFromTree",
+        "command": "crosscodenotes.openNoteFromTree",
         "title": "Code Notes: Open Note from Tree",
         "icon": "$(open-preview)"
       },
       {
-        "command": "codenotes.viewNoteAt",
+        "command": "crosscodenotes.viewNoteAt",
         "title": "Code Notes: View Note at"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "codenotes.refreshTree",
+          "command": "crosscodenotes.refreshTree",
           "when": "view == codeNotesView",
           "title": "Refresh",
           "group": "navigation"
         },
         {
-          "command": "codenotes.createNote",
+          "command": "crosscodenotes.createNote",
           "title": "New Note",
           "when": "view == codeNotesView",
           "group": "navigation"
         },
         {
-          "command": "codenotes.openNotesDir",
+          "command": "crosscodenotes.openNotesDir",
           "title": "Open Notes Directory",
           "when": "view == codeNotesView",
           "group": "navigation"
@@ -107,12 +118,12 @@
       ],
       "view/item/context": [
         {
-          "command": "codenotes.openNoteFromTree",
+          "command": "crosscodenotes.openNoteFromTree",
           "when": "view == codeNotesView && viewItem == note",
           "group": "inline"
         },
         {
-          "command": "codenotes.deleteNote",
+          "command": "crosscodenotes.deleteNote",
           "when": "view == codeNotesView && viewItem == note",
           "group": "inline"
         }
