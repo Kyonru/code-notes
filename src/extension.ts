@@ -2,7 +2,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
-import { createCommandName } from "./utils";
+import { createCommandName, getNotesDir } from "./utils";
 import { NotesTreeProvider } from "./treeView";
 import {
   gerRefreshTreeCommand,
@@ -15,13 +15,14 @@ import {
   getSelectNoteCommand,
   getViewNoteAtCommand,
   getViewNoteCommand,
+  getSearchNotesCommand,
 } from "./commands";
 import { NoteReference } from "./types";
 import { initCodeLensProvider, NotesCodeLensProvider } from "./codelens";
 
 const init = async (context: vscode.ExtensionContext) => {
-  if (!fs.existsSync(context.globalStorageUri.fsPath)) {
-    fs.mkdirSync(context.globalStorageUri.fsPath, { recursive: true });
+  if (!fs.existsSync(getNotesDir(context))) {
+    fs.mkdirSync(getNotesDir(context), { recursive: true });
   }
 
   const noteIndex: Record<string, NoteReference> = {};
@@ -74,6 +75,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
   const openNoteFromTree = getOpenNoteFromTreeCommand(context, updateStatusBar);
   const viewNoteAt = getViewNoteAtCommand();
+  const searchNotes = getSearchNotesCommand(context);
 
   updateStatusBar();
 
@@ -87,6 +89,7 @@ export function activate(context: vscode.ExtensionContext) {
     refreshTree,
     deleteNote,
     viewNoteAt,
+    searchNotes,
     openNoteFromTree,
     treeView,
     statusBarItem

@@ -93,6 +93,11 @@
       {
         "command": "crosscodenotes.viewNoteAt",
         "title": "Code Notes: View Note at"
+      },
+      {
+        "command": "crosscodenotes.searchNotes",
+        "title": "Code Notes: Search Notes",
+        "icon": "$(search)"
       }
     ],
     "menus": {
@@ -114,6 +119,12 @@
           "title": "Open Notes Directory",
           "when": "view == codeNotesView",
           "group": "navigation"
+        },
+        {
+          "command": "crosscodenotes.searchNotes",
+          "title": "Search Notes",
+          "when": "view == codeNotesView",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
@@ -128,7 +139,14 @@
           "group": "inline"
         }
       ]
-    }
+    },
+    "keybindings": [
+      {
+        "command": "crosscodenotes.addReference",
+        "key": "ctrl+shift+j",
+        "mac": "cmd+shift+j"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

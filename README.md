@@ -2,18 +2,6 @@
 
 Code Notes is a VS Code extension that lets you take structured notes across your codebase and quickly jump between code and the notes that describe it.
 
-It’s built for developers who:
-
-- Leave TODOs but never find them again
-
-- Keep random markdown files with scattered annotations
-
-- Review large codebases and want organized context
-
-- Work in teams and want traceable, navigable notes
-
-- Code Notes gives you a dedicated sidebar to manage notes, reference exact files + lines, preview content, and jump back into the code instantly.
-
 ## ✨ Features
 
 ### 📂 Notes Sidebar View

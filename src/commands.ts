@@ -3,7 +3,7 @@ import * as path from "path";
 import * as fs from "fs";
 
 import { NoteItem, NotesTreeProvider } from "./treeView";
-import { createCommandName } from "./utils";
+import { createCommandName, getNotesDir } from "./utils";
 import { NotesCodeLensProvider } from "./codelens";
 
 export function gerRefreshTreeCommand(
@@ -26,7 +26,7 @@ export function getCreateNoteCommand(
   return vscode.commands.registerCommand(
     createCommandName("createNote"),
     async () => {
-      const NOTES_DIR = context.globalStorageUri.fsPath;
+      const NOTES_DIR = getNotesDir(context);
 
       const noteName = await vscode.window.showInputBox({
         prompt: "Enter note name",
@@ -63,7 +63,7 @@ export function getSelectNoteCommand(
   return vscode.commands.registerCommand(
     createCommandName("selectNote"),
     async () => {
-      const NOTES_DIR = context.globalStorageUri.fsPath;
+      const NOTES_DIR = getNotesDir(context);
       const files = fs.readdirSync(NOTES_DIR).filter((f) => f.endsWith(".md"));
 
       if (files.length === 0) {
@@ -78,7 +78,7 @@ export function getSelectNoteCommand(
       });
 
       if (selected) {
-        const NOTES_DIR = context.globalStorageUri.fsPath;
+        const NOTES_DIR = getNotesDir(context);
 
         const currentNote = path.join(NOTES_DIR, selected);
         context.workspaceState.update("currentNote", currentNote);
@@ -255,7 +255,7 @@ export function getOpenNotesDirCommand(context: vscode.ExtensionContext) {
   return vscode.commands.registerCommand(
     createCommandName("openNotesDir"),
     () => {
-      const NOTES_DIR = context.globalStorageUri.fsPath;
+      const NOTES_DIR = getNotesDir(context);
       vscode.env.openExternal(vscode.Uri.file(NOTES_DIR));
     }
   );
@@ -305,6 +305,225 @@ export function getViewNoteAtCommand() {
       const pos = new vscode.Position(noteLine - 1, 0);
       editor.selection = new vscode.Selection(pos, pos);
       editor.revealRange(new vscode.Range(pos, pos));
+    }
+  );
+}
+
+export function getSearchNotesCommand(context: vscode.ExtensionContext) {
+  // Command: Search notes
+  return vscode.commands.registerCommand(
+    createCommandName("searchNotes"),
+    async () => {
+      const NOTES_DIR = getNotesDir(context);
+
+      const searchQuery = await vscode.window.showInputBox({
+        prompt: "Search in notes (annotations, file names, code)",
+        placeHolder: "Enter search term...",
+      });
+
+      if (!searchQuery || searchQuery.trim() === "") {
+        return;
+      }
+
+      const query = searchQuery.toLowerCase();
+      const results: Array<{
+        noteName: string;
+        notePath: string;
+        matches: Array<{
+          type: "title" | "annotation" | "code" | "filename";
+          line: number;
+          fileName?: string;
+          content: string;
+          preview: string;
+        }>;
+      }> = [];
+
+      // Search through all notes
+      const noteFiles = fs
+        .readdirSync(NOTES_DIR)
+        .filter((f) => f.endsWith(".md"));
+
+      for (const noteFile of noteFiles) {
+        const notePath = path.join(NOTES_DIR, noteFile);
+        const content = fs.readFileSync(notePath, "utf-8");
+        const lines = content.split("\n");
+        const noteName = path.basename(noteFile, ".md");
+        const noteMatches: (typeof results)[0]["matches"] = [];
+
+        // Check note title
+        if (noteName.toLowerCase().includes(query)) {
+          noteMatches.push({
+            type: "title",
+            line: 1,
+            content: noteName,
+            preview: `Note title: ${noteName}`,
+          });
+        }
+
+        // Parse sections and search
+        let currentSection: {
+          fileName?: string;
+          lineNum?: number;
+          annotation?: string;
+          code?: string;
+        } = {};
+        let inCodeBlock = false;
+        let codeLines: string[] = [];
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          const lineNum = i + 1;
+
+          // Detect section headers (## filename:line)
+          const sectionMatch = line.match(/^## (.+?):(\d+)/);
+          if (sectionMatch) {
+            // Process previous section if it had matches
+            if (currentSection.fileName) {
+              const sectionContent = [
+                currentSection.annotation,
+                currentSection.code,
+              ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
+
+              if (sectionContent.includes(query)) {
+                if (currentSection.annotation?.toLowerCase().includes(query)) {
+                  noteMatches.push({
+                    type: "annotation",
+                    line: lineNum,
+                    fileName: currentSection.fileName,
+                    content: currentSection.annotation!,
+                    preview: `${currentSection.fileName}:${currentSection.lineNum} - ${currentSection.annotation}`,
+                  });
+                }
+                if (currentSection.code?.toLowerCase().includes(query)) {
+                  noteMatches.push({
+                    type: "code",
+                    line: lineNum,
+                    fileName: currentSection.fileName,
+                    content: currentSection.code!,
+                    preview: `${currentSection.fileName}:${currentSection.lineNum} - Code snippet`,
+                  });
+                }
+              }
+            }
+
+            // Start new section
+            currentSection = {
+              fileName: sectionMatch[1],
+              lineNum: parseInt(sectionMatch[2]),
+              annotation: undefined,
+              code: undefined,
+            };
+            codeLines = [];
+            inCodeBlock = false;
+          }
+
+          // Extract annotation
+          const noteMatch = line.match(/\*\*Note:\*\* (.+)/);
+          if (noteMatch) {
+            currentSection.annotation = noteMatch[1];
+          }
+
+          // Track code blocks
+          if (line.startsWith("```")) {
+            inCodeBlock = !inCodeBlock;
+            continue;
+          }
+
+          if (inCodeBlock) {
+            codeLines.push(line);
+          }
+        }
+
+        // Process last section
+        if (currentSection.fileName) {
+          currentSection.code = codeLines.join("\n");
+          const sectionContent = [
+            currentSection.annotation,
+            currentSection.code,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+
+          if (sectionContent.includes(query)) {
+            if (currentSection.annotation?.toLowerCase().includes(query)) {
+              noteMatches.push({
+                type: "annotation",
+                line: lines.length,
+                fileName: currentSection.fileName,
+                content: currentSection.annotation!,
+                preview: `${currentSection.fileName}:${currentSection.lineNum} - ${currentSection.annotation}`,
+              });
+            }
+            if (currentSection.code?.toLowerCase().includes(query)) {
+              noteMatches.push({
+                type: "code",
+                line: lines.length,
+                fileName: currentSection.fileName,
+                content: currentSection.code!,
+                preview: `${currentSection.fileName}:${currentSection.lineNum} - Code snippet`,
+              });
+            }
+          }
+        }
+
+        if (noteMatches.length > 0) {
+          results.push({
+            noteName,
+            notePath,
+            matches: noteMatches,
+          });
+        }
+      }
+
+      // Display results
+      if (results.length === 0) {
+        vscode.window.showInformationMessage(
+          `No results found for "${searchQuery}"`
+        );
+        return;
+      }
+
+      // Create quick pick items
+      const items = results.flatMap((result) => {
+        return result.matches.map((match) => {
+          let icon = "$(file)";
+          if (match.type === "title") {
+            icon = "$(notebook)";
+          } else if (match.type === "annotation") {
+            icon = "$(note)";
+          } else if (match.type === "code") {
+            icon = "$(code)";
+          }
+
+          return {
+            label: `${icon} ${result.noteName}`,
+            description: match.preview,
+            detail:
+              match.type === "code"
+                ? match.content.substring(0, 100) +
+                  (match.content.length > 100 ? "..." : "")
+                : undefined,
+            notePath: result.notePath,
+          };
+        });
+      });
+
+      const selected = await vscode.window.showQuickPick(items, {
+        placeHolder: `Found ${items.length} result${
+          items.length === 1 ? "" : "s"
+        } for "${searchQuery}"`,
+        matchOnDescription: true,
+        matchOnDetail: true,
+      });
+
+      if (selected) {
+        const doc = await vscode.workspace.openTextDocument(selected.notePath);
+        await vscode.window.showTextDocument(doc);
+      }
     }
   );
 }

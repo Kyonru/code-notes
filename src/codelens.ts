@@ -29,8 +29,6 @@ export class NotesCodeLensProvider implements vscode.CodeLensProvider {
       const line = Number(refLine) - 1;
       const range = new vscode.Range(line, 0, line, 0);
 
-      console.log("kyonru lens", ref.notePath, refLine);
-
       lenses.push(
         new vscode.CodeLens(range, {
           title: "View Note",

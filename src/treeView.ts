@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
-import { createCommandName, getLineFromOffset } from "./utils";
+import { createCommandName, getLineFromOffset, getNotesDir } from "./utils";
 import { NoteReference } from "./types";
 
 export class NoteItem extends vscode.TreeItem {
@@ -45,7 +45,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteItem> {
   }
 
   getChildren(element?: NoteItem): Thenable<NoteItem[]> {
-    const NOTES_DIR = this.context.globalStorageUri.fsPath;
+    const NOTES_DIR = getNotesDir(this.context);
 
     if (!fs.existsSync(NOTES_DIR)) {
       return Promise.resolve([]);
@@ -61,7 +61,8 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteItem> {
   }
 
   private getNoteFiles(): NoteItem[] {
-    const NOTES_DIR = this.context.globalStorageUri.fsPath;
+    const NOTES_DIR = getNotesDir(this.context);
+
     const files = fs
       .readdirSync(NOTES_DIR)
       .filter((f) => f.endsWith(".md"))
