@@ -3,8 +3,9 @@ import * as path from "path";
 import * as fs from "fs";
 
 import { NoteItem, NotesTreeProvider } from "./treeView";
-import { createCommandName, getNotesDir } from "./utils";
+import { createCommandName, getDefaultNotesDir, getNotesDir } from "./utils";
 import { NotesCodeLensProvider } from "./codelens";
+import { EXTENSION_NAME } from "./constants";
 
 export function gerRefreshTreeCommand(
   notesTreeProvider: NotesTreeProvider,
@@ -523,6 +524,88 @@ export function getSearchNotesCommand(context: vscode.ExtensionContext) {
       if (selected) {
         const doc = await vscode.workspace.openTextDocument(selected.notePath);
         await vscode.window.showTextDocument(doc);
+      }
+    }
+  );
+}
+
+export function getChangeNotesDirectoryCommand(
+  context: vscode.ExtensionContext
+) {
+  return vscode.commands.registerCommand(
+    createCommandName("changeNotesDirectory"),
+    async () => {
+      const options = await vscode.window.showQuickPick(
+        [
+          {
+            label: "$(folder) Browse for Directory",
+            description: "Choose a custom location",
+            value: "browse",
+          },
+          {
+            label: "$(home) Use Default Directory",
+            description: getDefaultNotesDir(context),
+            value: "default",
+          },
+          {
+            label: "$(edit) Enter Path Manually",
+            description: "Type a custom path",
+            value: "manual",
+          },
+        ],
+        {
+          placeHolder: "How would you like to set the notes directory?",
+        }
+      );
+
+      if (!options) {
+        return;
+      }
+
+      let newPath: string | undefined;
+
+      if (options.value === "browse") {
+        const selected = await vscode.window.showOpenDialog({
+          canSelectFiles: false,
+          canSelectFolders: true,
+          canSelectMany: false,
+          openLabel: "Select Notes Directory",
+          title: "Choose Notes Directory",
+        });
+
+        if (selected && selected[0]) {
+          newPath = selected[0].fsPath;
+        }
+      } else if (options.value === "default") {
+        newPath = ""; // Empty string will use default
+      } else if (options.value === "manual") {
+        const NOTES_DIR = getNotesDir(context);
+        const input = await vscode.window.showInputBox({
+          prompt: "Enter notes directory path",
+          placeHolder: "~/Documents/code-notes or /absolute/path",
+          value: NOTES_DIR,
+          validateInput: (value) => {
+            if (!value || value.trim() === "") {
+              return "Path cannot be empty";
+            }
+            return null;
+          },
+        });
+
+        if (input) {
+          newPath = input;
+        }
+      }
+
+      if (newPath !== undefined) {
+        const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
+        await config.update(
+          "notesDirectory",
+          newPath,
+          vscode.ConfigurationTarget.Global
+        );
+
+        await vscode.commands.executeCommand(createCommandName("refreshTree"));
       }
     }
   );

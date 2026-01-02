@@ -16,6 +16,7 @@ import {
   getViewNoteAtCommand,
   getViewNoteCommand,
   getSearchNotesCommand,
+  getChangeNotesDirectoryCommand,
 } from "./commands";
 import { NoteReference } from "./types";
 import { initCodeLensProvider, NotesCodeLensProvider } from "./codelens";
@@ -76,6 +77,7 @@ export function activate(context: vscode.ExtensionContext) {
   const openNoteFromTree = getOpenNoteFromTreeCommand(context, updateStatusBar);
   const viewNoteAt = getViewNoteAtCommand();
   const searchNotes = getSearchNotesCommand(context);
+  const changeNotesDirectory = getChangeNotesDirectoryCommand(context);
 
   updateStatusBar();
 
@@ -89,6 +91,7 @@ export function activate(context: vscode.ExtensionContext) {
     refreshTree,
     deleteNote,
     viewNoteAt,
+    changeNotesDirectory,
     searchNotes,
     openNoteFromTree,
     treeView,

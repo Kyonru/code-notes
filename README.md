@@ -1,6 +1,6 @@
-# Code Notes 📝
+# Codebase Notebook 📝
 
-Code Notes is a VS Code extension that lets you take structured notes across your codebase and quickly jump between code and the notes that describe it.
+Codebase Notebook is a VS Code extension that lets you take structured notes across your codebase and quickly jump between code and the notes that describe it.
 
 ## ✨ Features
 
@@ -36,9 +36,9 @@ Code Notes is a VS Code extension that lets you take structured notes across you
 
 ### 📸 UI Overview
 
-> Screenshots coming soon
+![example](preview.gif)
 
-- Activity Bar → Code Notes
+- Activity Bar → Codebase Notebook
 
 - Sidebar tree listing all your notes
 
@@ -62,23 +62,23 @@ Then press F5 to launch the extension dev host.
 
 ## 🎯 Core Commands
 
-| Command                            | Description                                     |
-| ---------------------------------- | ----------------------------------------------- |
-| `Code Notes: Create Note`          | Create a new note                               |
-| `Code Notes: Select Note`          | Switch the active note                          |
-| `Code Notes: Add Reference`        | Attach a code reference to a note               |
-| `Code Notes: Go to Reference`      | Jump to referenced file + line                  |
-| `Code Notes: View Note`            | Open preview of current note                    |
-| `Code Notes: Open Notes Directory` | Open storage folder for notes                   |
-| `Code Notes: Delete Note`          | Remove note                                     |
-| `Code Notes: Refresh Tree`         | Reload notes list                               |
-| `Code Notes: Open Note from Tree`  | Open by clicking tree item                      |
-| `Code Notes: View Note at`         | View note related to current cursor (if exists) |
+| Command                                   | Description                                     |
+| ----------------------------------------- | ----------------------------------------------- |
+| `Codebase Notebook: Create Note`          | Create a new note                               |
+| `Codebase Notebook: Select Note`          | Switch the active note                          |
+| `Codebase Notebook: Add Reference`        | Attach a code reference to a note               |
+| `Codebase Notebook: Go to Reference`      | Jump to referenced file + line                  |
+| `Codebase Notebook: View Note`            | Open preview of current note                    |
+| `Codebase Notebook: Open Notes Directory` | Open storage folder for notes                   |
+| `Codebase Notebook: Delete Note`          | Remove note                                     |
+| `Codebase Notebook: Refresh Tree`         | Reload notes list                               |
+| `Codebase Notebook: Open Note from Tree`  | Open by clicking tree item                      |
+| `Codebase Notebook: View Note at`         | View note related to current cursor (if exists) |
 
 You’ll find most actions in:
 
 - Command Palette (Cmd/Ctrl + Shift + P)
-- Code Notes sidebar
+- Codebase Notebook sidebar
 - Tree item right-click menus
 
 ## 🗂️ Where are notes stored?
@@ -86,18 +86,6 @@ You’ll find most actions in:
 Notes are stored locally in a Markdown directory (managed by the extension).
 
 They’re human readable and version-control friendly.
-
-## 🔧 Roadmap
-
-Planned improvements include:
-
-- Search & filtering
-
-- Workspace-shared notes option
-
-- Inline commenting UX
-
-- Multiple notes per line
 
 If you have ideas or feature requests, open an issue!
 
