@@ -15,6 +15,7 @@ import {
   getDeleteNoteCommand,
   getFilterByTagCommand,
   getGoToReferenceCommand,
+  getImportFromClipboardCommand,
   getOpenNoteFromTreeCommand,
   getOpenNotesDirCommand,
   getRemoveTagCommand,
@@ -30,6 +31,7 @@ import {
 } from "./commands";
 import { registerChatParticipant } from "./chat";
 import { initCodeLensProvider, NotesCodeLensProvider } from "./codelens";
+import { initHoverProvider } from "./hoverProvider";
 import { initInlineCompletionProvider } from "./inlineCompletion";
 import { NotesStorage } from "./storage";
 import { migrateIfNeeded } from "./migration";
@@ -133,10 +135,17 @@ export function activate(context: vscode.ExtensionContext) {
   const archiveNote = getArchiveNoteCommand(context, storage, notesTreeProvider);
   const unarchiveNote = getUnarchiveNoteCommand(storage, notesTreeProvider);
   const toggleShowArchived = getToggleShowArchivedCommand(context, notesTreeProvider);
+  const importFromClipboard = getImportFromClipboardCommand(
+    context,
+    storage,
+    notesTreeProvider,
+    provider,
+  );
 
   registerChatParticipant(context, storage);
   initInlineCompletionProvider(context, storage);
   initLineTracker(context, storage);
+  initHoverProvider(context, storage);
 
   updateStatusBar();
 
@@ -164,6 +173,7 @@ export function activate(context: vscode.ExtensionContext) {
     archiveNote,
     unarchiveNote,
     toggleShowArchived,
+    importFromClipboard,
     treeView,
     statusBarItem,
   );

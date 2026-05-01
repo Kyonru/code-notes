@@ -633,6 +633,151 @@ export function getChangeNotesDirectoryCommand(
   );
 }
 
+export function getImportFromClipboardCommand(
+  context: vscode.ExtensionContext,
+  storage: NotesStorage,
+  notesTreeProvider: NotesTreeProvider,
+  provider: NotesCodeLensProvider
+) {
+  return vscode.commands.registerCommand(
+    createCommandName("importFromClipboard"),
+    async () => {
+      const currentNotePath = context.workspaceState.get<string>("currentNote");
+
+      if (!currentNotePath) {
+        const action = await vscode.window.showWarningMessage(
+          "No note selected. Would you like to select one?",
+          "Select Note",
+          "Create Note"
+        );
+        if (action === "Select Note") {
+          await vscode.commands.executeCommand(createCommandName("selectNote"));
+        } else if (action === "Create Note") {
+          await vscode.commands.executeCommand(createCommandName("createNote"));
+        }
+        return;
+      }
+
+      const noteId = path.basename(currentNotePath, ".md");
+      const clipboard = await vscode.env.clipboard.readText();
+
+      if (!clipboard || !clipboard.trim()) {
+        vscode.window.showWarningMessage("Clipboard is empty.");
+        return;
+      }
+
+      // Detect file references: patterns like path/file.ext:line or path/file.ext#L10
+      const refPattern = /(?:^|\s|`)((?:[\w./-]+\/)?[\w.-]+\.\w+)(?::(\d+)|#L(\d+))/gm;
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      const workspaceRoot = workspaceFolders?.[0]?.uri.fsPath ?? "";
+
+      interface DetectedRef {
+        file: string;
+        line: number;
+        resolvedPath: string;
+      }
+
+      const detected: DetectedRef[] = [];
+      let match: RegExpExecArray | null;
+
+      while ((match = refPattern.exec(clipboard)) !== null) {
+        const filePart = match[1];
+        const line = parseInt(match[2] || match[3], 10);
+
+        // Try to resolve the file path
+        let resolvedPath = "";
+        if (path.isAbsolute(filePart) && fs.existsSync(filePart)) {
+          resolvedPath = filePart;
+        } else if (workspaceRoot) {
+          const candidate = path.resolve(workspaceRoot, filePart);
+          if (fs.existsSync(candidate)) {
+            resolvedPath = candidate;
+          }
+        }
+
+        if (resolvedPath && line > 0) {
+          detected.push({ file: filePart, line, resolvedPath });
+        }
+      }
+
+      if (detected.length === 0) {
+        // No file refs detected — append clipboard content as raw markdown to the note
+        const confirm = await vscode.window.showInformationMessage(
+          "No file references detected. Append clipboard content to the note as text?",
+          "Append",
+          "Cancel"
+        );
+        if (confirm === "Append") {
+          fs.appendFileSync(currentNotePath, `\n---\n\n${clipboard}\n`);
+          vscode.window.showInformationMessage("Clipboard content appended to note.");
+          const doc = await vscode.workspace.openTextDocument(currentNotePath);
+          await vscode.window.showTextDocument(doc);
+        }
+        return;
+      }
+
+      // Show detected references and let user confirm
+      const items = detected.map((d) => ({
+        label: `${d.file}:${d.line}`,
+        description: d.resolvedPath,
+        picked: true,
+        ref: d,
+      }));
+
+      const selected = await vscode.window.showQuickPick(items, {
+        placeHolder: `Found ${detected.length} reference(s) in clipboard. Select which to add.`,
+        canPickMany: true,
+      });
+
+      if (!selected || selected.length === 0) {
+        return;
+      }
+
+      let added = 0;
+      for (const item of selected) {
+        const { resolvedPath, line } = item.ref;
+
+        // Read the code snippet from the file
+        let snippet = "";
+        let language = "";
+        try {
+          const fileContent = fs.readFileSync(resolvedPath, "utf-8");
+          const lines = fileContent.split("\n");
+          snippet = lines[line - 1] ?? "";
+          // Detect language from extension
+          const ext = path.extname(resolvedPath).slice(1);
+          language = ext || "plaintext";
+        } catch {
+          snippet = "";
+          language = "plaintext";
+        }
+
+        await storage.addReference(
+          noteId,
+          resolvedPath,
+          line,
+          snippet,
+          language,
+          ""
+        );
+        added++;
+      }
+
+      notesTreeProvider.refresh();
+      provider.refresh();
+
+      const result = await vscode.window.showInformationMessage(
+        `Imported ${added} reference(s) from clipboard!`,
+        "View Note"
+      );
+
+      if (result === "View Note") {
+        vscode.commands.executeCommand(createCommandName("viewNote"));
+      }
+    }
+  );
+}
+
 export function getArchiveNoteCommand(
   context: vscode.ExtensionContext,
   storage: NotesStorage,

@@ -17,11 +17,11 @@
 
 - [ ] **Export to markdown/PDF** — Generate a standalone document from a note with embedded code snippets and file links
 - [ ] **Share via gist** — Publish a note as a GitHub Gist for sharing with teammates
-- [ ] **Import from clipboard** — Paste a markdown snippet and auto-detect file references in it
+- [x] **Import from clipboard** — Paste a markdown snippet and auto-detect file references in it
 
 ## Navigation & Discovery
 
-- [ ] **Hover preview** — Show the annotation when hovering over a referenced line in the editor (beyond CodeLens)
+- [x] **Hover preview** — Show the annotation when hovering over a referenced line in the editor (beyond CodeLens)
 - [ ] **Reference graph** — A webview showing a visual map of how notes connect to files and to each other
 - [ ] **References to this file** — A tree view filter or command showing all notes that reference the currently open file
 

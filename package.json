@@ -165,6 +165,11 @@
         "command": "crosscodenotes.toggleShowArchived",
         "title": "Codebase Notebook: Toggle Show Archived",
         "icon": "$(archive)"
+      },
+      {
+        "command": "crosscodenotes.importFromClipboard",
+        "title": "Codebase Notebook: Import from Clipboard",
+        "icon": "$(clippy)"
       }
     ],
     "menus": {
