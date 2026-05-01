@@ -282,6 +282,11 @@
         "command": "crosscodenotes.detectBrokenReferences",
         "title": "Codebase Notebook: Detect Broken References",
         "icon": "$(warning)"
+      },
+      {
+        "command": "crosscodenotes.viewHistory",
+        "title": "Codebase Notebook: View Annotation History",
+        "icon": "$(history)"
       }
     ],
     "menus": {
@@ -418,6 +423,11 @@
           "command": "crosscodenotes.deleteAnnotation",
           "when": "view == codeNotesView && viewItem == reference-pinned-commented",
           "group": "inline"
+        },
+        {
+          "command": "crosscodenotes.viewHistory",
+          "when": "view == codeNotesView && viewItem =~ /^reference/",
+          "group": "3_history"
         }
       ],
       "editor/context": [

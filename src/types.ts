@@ -20,6 +20,13 @@ export interface ReferenceEntry {
   pinned?: boolean;
   sortOrder?: number;
   comments?: ReferenceComment[];
+  history?: AnnotationHistoryEntry[];
+}
+
+export interface AnnotationHistoryEntry {
+  annotation: string;
+  codeSnippet: string;
+  changedAt: string;
 }
 
 export interface ReferenceComment {

@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { CURRENT_SCHEMA_VERSION, INDEX_FILE_NAME } from "./constants";
-import { NoteEntry, NoteIndex, ReferenceComment, ReferenceEntry } from "./types";
+import { NoteEntry, NoteIndex, ReferenceComment, ReferenceEntry, AnnotationHistoryEntry } from "./types";
 
 function slugify(name: string): string {
   return name.replace(/[^a-z0-9-_]/gi, "-").toLowerCase();
@@ -280,6 +280,20 @@ export class NotesStorage {
     for (const ref of refs) {
       const oldId = ref.id;
       const newId = `${ref.noteId}:${ref.file}:${ref.line}`;
+      const existing = this.index.references[oldId];
+
+      // Record history if annotation changed
+      if (existing && existing.annotation && existing.annotation !== ref.annotation) {
+        const historyEntry: AnnotationHistoryEntry = {
+          annotation: existing.annotation,
+          codeSnippet: existing.codeSnippet,
+          changedAt: new Date().toISOString(),
+        };
+        if (!ref.history) {
+          ref.history = [];
+        }
+        ref.history.push(historyEntry);
+      }
 
       // Re-key if the ID changed (line number moved)
       if (oldId !== newId) {

@@ -2184,3 +2184,83 @@ export async function detectBrokenReferences(
     );
   }
 }
+
+export function getViewHistoryCommand(storage: NotesStorage) {
+  return vscode.commands.registerCommand(
+    createCommandName("viewHistory"),
+    async (item?: NoteItem) => {
+      let referenceId: string | undefined;
+
+      if (item && item.referenceId) {
+        referenceId = item.referenceId;
+      } else {
+        // Pick from all references
+        const allRefs = storage.getAllReferences();
+        const refsWithHistory = allRefs.filter(
+          (r) => r.history && r.history.length > 0
+        );
+
+        if (refsWithHistory.length === 0) {
+          vscode.window.showInformationMessage(
+            "No annotation history yet. History is recorded when annotations are updated."
+          );
+          return;
+        }
+
+        const picked = await vscode.window.showQuickPick(
+          refsWithHistory.map((r) => ({
+            label: `${path.basename(r.file)}:${r.line}`,
+            description: `${r.history!.length} revision${r.history!.length > 1 ? "s" : ""}`,
+            detail: r.annotation,
+            refId: r.id,
+          })),
+          { placeHolder: "Select a reference to view its history" }
+        );
+
+        if (!picked) {
+          return;
+        }
+        referenceId = picked.refId;
+      }
+
+      const allRefs = storage.getAllReferences();
+      const ref = allRefs.find((r) => r.id === referenceId);
+      if (!ref) {
+        vscode.window.showErrorMessage("Reference not found.");
+        return;
+      }
+
+      if (!ref.history || ref.history.length === 0) {
+        vscode.window.showInformationMessage(
+          "No history for this annotation yet."
+        );
+        return;
+      }
+
+      const baseName = path.basename(ref.file);
+      const entries = [...ref.history].reverse(); // newest first
+
+      let markdown = `# Annotation History\n\n`;
+      markdown += `**File:** ${baseName}:${ref.line}\n\n`;
+      markdown += `---\n\n`;
+      markdown += `## Current\n\n`;
+      markdown += `> ${ref.annotation}\n\n`;
+      markdown += `\`\`\`${ref.language}\n${ref.codeSnippet}\n\`\`\`\n\n`;
+
+      for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i];
+        const date = new Date(entry.changedAt).toLocaleString();
+        markdown += `---\n\n`;
+        markdown += `## Revision ${entries.length - i} — ${date}\n\n`;
+        markdown += `> ${entry.annotation}\n\n`;
+        markdown += `\`\`\`${ref.language}\n${entry.codeSnippet}\n\`\`\`\n\n`;
+      }
+
+      const doc = await vscode.workspace.openTextDocument({
+        content: markdown,
+        language: "markdown",
+      });
+      await vscode.window.showTextDocument(doc, { preview: true });
+    }
+  );
+}
