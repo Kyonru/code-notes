@@ -45,6 +45,7 @@ import { registerChatParticipant } from "./chat";
 import { initCodeLensProvider, NotesCodeLensProvider } from "./codelens";
 import { initHoverProvider } from "./hoverProvider";
 import { getShowReferenceGraphCommand } from "./graphView";
+import { getShowTimelineCommand } from "./timelineView";
 import { initInlineCompletionProvider } from "./inlineCompletion";
 import { NotesStorage } from "./storage";
 import { migrateIfNeeded } from "./migration";
@@ -191,6 +192,7 @@ export function activate(context: vscode.ExtensionContext) {
     toggleShowArchived,
     importFromClipboard,
     getShowReferenceGraphCommand(storage),
+    getShowTimelineCommand(storage),
     getReferencesToThisFileCommand(storage),
     getToggleWorkspaceStorageCommand(context, storage, notesTreeProvider, provider),
     getAddCommentCommand(storage, notesTreeProvider),

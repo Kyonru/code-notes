@@ -272,6 +272,11 @@
       {
         "command": "crosscodenotes.quickAdd",
         "title": "Codebase Notebook: Quick Add Annotation"
+      },
+      {
+        "command": "crosscodenotes.showTimeline",
+        "title": "Codebase Notebook: Show Annotation Timeline",
+        "icon": "$(history)"
       }
     ],
     "menus": {
