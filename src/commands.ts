@@ -1370,3 +1370,65 @@ export function getReferencesToThisFileCommand(storage: NotesStorage) {
     }
   );
 }
+
+export function getToggleWorkspaceStorageCommand(
+  context: vscode.ExtensionContext,
+  storage: NotesStorage,
+  notesTreeProvider: NotesTreeProvider,
+  provider: NotesCodeLensProvider
+) {
+  return vscode.commands.registerCommand(
+    createCommandName("toggleWorkspaceStorage"),
+    async () => {
+      const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
+      const current = config.get<boolean>("useWorkspaceFolder") ?? false;
+
+      const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!workspaceRoot) {
+        vscode.window.showWarningMessage(
+          "No workspace folder open. Cannot use workspace storage."
+        );
+        return;
+      }
+
+      const newValue = !current;
+      const label = newValue
+        ? "Enable workspace storage (.codenotes/)"
+        : "Disable workspace storage (use global)";
+
+      const confirm = await vscode.window.showInformationMessage(
+        `${label}?\n\nExisting notes will remain in their current location.`,
+        { modal: true },
+        "Confirm"
+      );
+
+      if (confirm !== "Confirm") {
+        return;
+      }
+
+      await config.update(
+        "useWorkspaceFolder",
+        newValue,
+        vscode.ConfigurationTarget.Workspace
+      );
+
+      const resolvedDir = getNotesDir(context);
+
+      // Ensure the directory exists
+      if (!fs.existsSync(resolvedDir)) {
+        fs.mkdirSync(resolvedDir, { recursive: true });
+      }
+
+      await storage.reload(resolvedDir);
+      notesTreeProvider.refresh();
+      provider.refresh();
+
+      const location = newValue
+        ? `.codenotes/ (workspace-relative)`
+        : "global storage";
+      vscode.window.showInformationMessage(
+        `Notes directory switched to ${location}.`
+      );
+    }
+  );
+}

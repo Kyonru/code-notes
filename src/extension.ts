@@ -29,6 +29,7 @@ import {
   getSearchNotesCommand,
   getChangeNotesDirectoryCommand,
   getReferencesToThisFileCommand,
+  getToggleWorkspaceStorageCommand,
 } from "./commands";
 import { registerChatParticipant } from "./chat";
 import { initCodeLensProvider, NotesCodeLensProvider } from "./codelens";
@@ -178,6 +179,7 @@ export function activate(context: vscode.ExtensionContext) {
     importFromClipboard,
     getShowReferenceGraphCommand(storage),
     getReferencesToThisFileCommand(storage),
+    getToggleWorkspaceStorageCommand(context, storage, notesTreeProvider, provider),
     treeView,
     statusBarItem,
   );

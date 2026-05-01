@@ -33,5 +33,5 @@
 
 ## Collaboration
 
-- [ ] **Git-friendly storage** — Option to store notes inside the repo (e.g., `.codenotes/`) so they're committed and shared with the team
+- [x] **Git-friendly storage** — Option to store notes inside the repo (e.g., `.codenotes/`) so they're committed and shared with the team
 - [ ] **Note comments/threads** — Allow multiple annotations per reference, creating a conversation thread

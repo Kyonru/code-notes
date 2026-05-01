@@ -12,6 +12,16 @@ export function getLineFromOffset(content: string, offset: number): number {
 
 export function getNotesDir(context: vscode.ExtensionContext): string {
   const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
+
+  // Check workspace-relative storage first
+  const useWorkspaceFolder = config.get<boolean>("useWorkspaceFolder");
+  if (useWorkspaceFolder) {
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (workspaceRoot) {
+      return path.join(workspaceRoot, ".codenotes");
+    }
+  }
+
   const customPath = config.get<string>("notesDirectory");
 
   if (customPath && customPath.trim() !== "") {

@@ -39,6 +39,12 @@
           "default": "",
           "markdownDescription": "Custom directory for storing notes. Leave empty to use default. Supports `~` for home directory.",
           "scope": "application"
+        },
+        "crosscodenotes.useWorkspaceFolder": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Store notes in a `.codenotes/` folder inside the workspace root. When enabled, notes are committed with the repo and shared with the team.",
+          "scope": "resource"
         }
       }
     },
@@ -180,6 +186,11 @@
         "command": "crosscodenotes.referencesToThisFile",
         "title": "Codebase Notebook: References to This File",
         "icon": "$(references)"
+      },
+      {
+        "command": "crosscodenotes.toggleWorkspaceStorage",
+        "title": "Codebase Notebook: Toggle Workspace Storage (.codenotes/)",
+        "icon": "$(repo)"
       }
     ],
     "menus": {
