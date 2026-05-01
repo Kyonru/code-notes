@@ -20,6 +20,7 @@ import {
 } from "./commands";
 import { registerChatParticipant } from "./chat";
 import { initCodeLensProvider, NotesCodeLensProvider } from "./codelens";
+import { initInlineCompletionProvider } from "./inlineCompletion";
 import { NotesStorage } from "./storage";
 import { migrateIfNeeded } from "./migration";
 
@@ -46,7 +47,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   const statusBarItem = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,
-    100
+    100,
   );
   statusBarItem.command = createCommandName("selectNote");
 
@@ -64,7 +65,11 @@ export function activate(context: vscode.ExtensionContext) {
 
   const createNote = getCreateNoteCommand(context, storage, notesTreeProvider);
   const selectNote = getSelectNoteCommand(context, storage, notesTreeProvider);
-  const addReference = getAddReferenceCommand(context, storage, notesTreeProvider);
+  const addReference = getAddReferenceCommand(
+    context,
+    storage,
+    notesTreeProvider,
+  );
   const goToReference = getGoToReferenceCommand();
   const viewNote = getViewNoteCommand(context);
   const openNotesDir = getOpenNotesDirCommand(context);
@@ -73,15 +78,25 @@ export function activate(context: vscode.ExtensionContext) {
     context,
     storage,
     notesTreeProvider,
-    updateStatusBar
+    updateStatusBar,
   );
   const openNoteFromTree = getOpenNoteFromTreeCommand(context, updateStatusBar);
   const viewNoteAt = getViewNoteAtCommand();
   const searchNotes = getSearchNotesCommand(storage);
-  const changeNotesDirectory = getChangeNotesDirectoryCommand(context, storage, notesTreeProvider, provider);
-  const applyAnnotatedReference = getApplyAnnotatedReferenceCommand(storage, notesTreeProvider, provider);
+  const changeNotesDirectory = getChangeNotesDirectoryCommand(
+    context,
+    storage,
+    notesTreeProvider,
+    provider,
+  );
+  const applyAnnotatedReference = getApplyAnnotatedReferenceCommand(
+    storage,
+    notesTreeProvider,
+    provider,
+  );
 
   registerChatParticipant(context, storage);
+  initInlineCompletionProvider(context, storage);
 
   updateStatusBar();
 
@@ -100,7 +115,7 @@ export function activate(context: vscode.ExtensionContext) {
     openNoteFromTree,
     applyAnnotatedReference,
     treeView,
-    statusBarItem
+    statusBarItem,
   );
 }
 

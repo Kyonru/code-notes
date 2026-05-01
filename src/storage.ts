@@ -49,7 +49,13 @@ export class NotesStorage {
 
     if (!this.index.notes[id]) {
       const now = new Date().toISOString();
-      const entry: NoteEntry = { id, name, filePath, createdAt: now, updatedAt: now };
+      const entry: NoteEntry = {
+        id,
+        name,
+        filePath,
+        createdAt: now,
+        updatedAt: now,
+      };
       fs.writeFileSync(filePath, `# ${name}\n\n`);
       this.index.notes[id] = entry;
       await this.saveIndex();
@@ -81,7 +87,7 @@ export class NotesStorage {
 
   getNotes(): NoteEntry[] {
     return Object.values(this.index.notes).sort((a, b) =>
-      a.name.localeCompare(b.name)
+      a.name.localeCompare(b.name),
     );
   }
 
@@ -101,7 +107,7 @@ export class NotesStorage {
     line: number,
     codeSnippet: string,
     language: string,
-    annotation: string
+    annotation: string,
   ): Promise<ReferenceEntry> {
     const note = this.index.notes[noteId];
     if (!note) {
@@ -157,18 +163,22 @@ export class NotesStorage {
 
   getReferencesForNote(noteId: string): ReferenceEntry[] {
     return Object.values(this.index.references).filter(
-      (r) => r.noteId === noteId
+      (r) => r.noteId === noteId,
     );
   }
 
   getReferencesForFile(filePath: string): ReferenceEntry[] {
     return Object.values(this.index.references).filter(
-      (r) => r.file === filePath
+      (r) => r.file === filePath,
     );
   }
 
   getAllReferences(): ReferenceEntry[] {
     return Object.values(this.index.references);
+  }
+
+  getNotesDirectory(): string {
+    return this.notesDir;
   }
 
   // --- Persistence ---
