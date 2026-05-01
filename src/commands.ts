@@ -541,6 +541,95 @@ export function getChangeNotesDirectoryCommand(
   );
 }
 
+export function getArchiveNoteCommand(
+  context: vscode.ExtensionContext,
+  storage: NotesStorage,
+  notesTreeProvider: NotesTreeProvider
+) {
+  return vscode.commands.registerCommand(
+    createCommandName("archiveNote"),
+    async (item?: NoteItem) => {
+      let noteId: string | undefined;
+
+      if (item?.filePath) {
+        noteId = path.basename(item.filePath, ".md");
+      } else {
+        const notes = storage.getNotes();
+        if (notes.length === 0) {
+          vscode.window.showInformationMessage("No notes to archive.");
+          return;
+        }
+        const selected = await vscode.window.showQuickPick(
+          notes.map((n) => ({ label: n.name, noteId: n.id })),
+          { placeHolder: "Select a note to archive" }
+        );
+        if (!selected) { return; }
+        noteId = selected.noteId;
+      }
+
+      await storage.archiveNote(noteId!);
+
+      // Clear current note if it was archived
+      const currentNotePath = context.workspaceState.get<string>("currentNote");
+      if (currentNotePath && path.basename(currentNotePath, ".md") === noteId) {
+        context.workspaceState.update("currentNote", undefined);
+      }
+
+      notesTreeProvider.refresh();
+      vscode.window.showInformationMessage("Note archived.");
+    }
+  );
+}
+
+export function getUnarchiveNoteCommand(
+  storage: NotesStorage,
+  notesTreeProvider: NotesTreeProvider
+) {
+  return vscode.commands.registerCommand(
+    createCommandName("unarchiveNote"),
+    async (item?: NoteItem) => {
+      let noteId: string | undefined;
+
+      if (item?.filePath) {
+        noteId = path.basename(item.filePath, ".md");
+      } else {
+        const archived = storage.getArchivedNotes();
+        if (archived.length === 0) {
+          vscode.window.showInformationMessage("No archived notes.");
+          return;
+        }
+        const selected = await vscode.window.showQuickPick(
+          archived.map((n) => ({ label: n.name, noteId: n.id })),
+          { placeHolder: "Select a note to unarchive" }
+        );
+        if (!selected) { return; }
+        noteId = selected.noteId;
+      }
+
+      await storage.unarchiveNote(noteId!);
+      notesTreeProvider.refresh();
+      vscode.window.showInformationMessage("Note unarchived.");
+    }
+  );
+}
+
+export function getToggleShowArchivedCommand(
+  context: vscode.ExtensionContext,
+  notesTreeProvider: NotesTreeProvider
+) {
+  return vscode.commands.registerCommand(
+    createCommandName("toggleShowArchived"),
+    async () => {
+      const current = context.workspaceState.get<boolean>("showArchived") ?? false;
+      await context.workspaceState.update("showArchived", !current);
+      notesTreeProvider.refresh();
+      vscode.window.showInformationMessage(
+        !current ? "Showing archived notes." : "Hiding archived notes."
+      );
+    }
+  );
+}
+
 export function getAddTagCommand(
   storage: NotesStorage,
   notesTreeProvider: NotesTreeProvider

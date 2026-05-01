@@ -145,6 +145,21 @@
         "command": "crosscodenotes.filterByTag",
         "title": "Codebase Notebook: Filter by Tag",
         "icon": "$(filter)"
+      },
+      {
+        "command": "crosscodenotes.archiveNote",
+        "title": "Codebase Notebook: Archive Note",
+        "icon": "$(archive)"
+      },
+      {
+        "command": "crosscodenotes.unarchiveNote",
+        "title": "Codebase Notebook: Unarchive Note",
+        "icon": "$(history)"
+      },
+      {
+        "command": "crosscodenotes.toggleShowArchived",
+        "title": "Codebase Notebook: Toggle Show Archived",
+        "icon": "$(archive)"
       }
     ],
     "menus": {
@@ -178,6 +193,12 @@
           "title": "Filter by Tag",
           "when": "view == codeNotesView",
           "group": "navigation"
+        },
+        {
+          "command": "crosscodenotes.toggleShowArchived",
+          "title": "Toggle Archived",
+          "when": "view == codeNotesView",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
@@ -189,6 +210,16 @@
         {
           "command": "crosscodenotes.addTag",
           "when": "view == codeNotesView && viewItem == note",
+          "group": "inline"
+        },
+        {
+          "command": "crosscodenotes.archiveNote",
+          "when": "view == codeNotesView && viewItem == note",
+          "group": "inline"
+        },
+        {
+          "command": "crosscodenotes.unarchiveNote",
+          "when": "view == codeNotesView && viewItem == note-archived",
           "group": "inline"
         },
         {

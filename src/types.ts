@@ -5,6 +5,7 @@ export interface NoteEntry {
   createdAt: string;
   updatedAt: string;
   tags?: string[];
+  archived?: boolean;
 }
 
 export interface ReferenceEntry {

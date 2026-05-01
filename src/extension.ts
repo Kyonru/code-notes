@@ -8,6 +8,7 @@ import {
   getAddReferenceCommand,
   getAddTagCommand,
   getApplyAnnotatedReferenceCommand,
+  getArchiveNoteCommand,
   getBulkAddReferencesCommand,
   getCreateNoteCommand,
   getDeleteNoteCommand,
@@ -19,6 +20,8 @@ import {
   getSelectNoteCommand,
   getSuggestNoteCommand,
   getTogglePinReferenceCommand,
+  getToggleShowArchivedCommand,
+  getUnarchiveNoteCommand,
   getViewNoteAtCommand,
   getViewNoteCommand,
   getSearchNotesCommand,
@@ -125,6 +128,9 @@ export function activate(context: vscode.ExtensionContext) {
   const addTag = getAddTagCommand(storage, notesTreeProvider);
   const removeTag = getRemoveTagCommand(storage, notesTreeProvider);
   const filterByTag = getFilterByTagCommand(context, storage, notesTreeProvider);
+  const archiveNote = getArchiveNoteCommand(context, storage, notesTreeProvider);
+  const unarchiveNote = getUnarchiveNoteCommand(storage, notesTreeProvider);
+  const toggleShowArchived = getToggleShowArchivedCommand(context, notesTreeProvider);
 
   registerChatParticipant(context, storage);
   initInlineCompletionProvider(context, storage);
@@ -152,6 +158,9 @@ export function activate(context: vscode.ExtensionContext) {
     addTag,
     removeTag,
     filterByTag,
+    archiveNote,
+    unarchiveNote,
+    toggleShowArchived,
     treeView,
     statusBarItem,
   );

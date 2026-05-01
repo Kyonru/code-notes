@@ -86,9 +86,37 @@ export class NotesStorage {
   }
 
   getNotes(): NoteEntry[] {
+    return Object.values(this.index.notes)
+      .filter((n) => !n.archived)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  getArchivedNotes(): NoteEntry[] {
+    return Object.values(this.index.notes)
+      .filter((n) => n.archived)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  getAllNotesIncludingArchived(): NoteEntry[] {
     return Object.values(this.index.notes).sort((a, b) =>
       a.name.localeCompare(b.name),
     );
+  }
+
+  async archiveNote(noteId: string): Promise<void> {
+    const note = this.index.notes[noteId];
+    if (!note) { return; }
+    note.archived = true;
+    note.updatedAt = new Date().toISOString();
+    await this.saveIndex();
+  }
+
+  async unarchiveNote(noteId: string): Promise<void> {
+    const note = this.index.notes[noteId];
+    if (!note) { return; }
+    note.archived = false;
+    note.updatedAt = new Date().toISOString();
+    await this.saveIndex();
   }
 
   getNote(noteId: string): NoteEntry | undefined {

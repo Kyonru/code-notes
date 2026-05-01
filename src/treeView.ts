@@ -57,23 +57,31 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteItem> {
 
   private getNoteFiles(): NoteItem[] {
     const tagFilter = this.context.workspaceState.get<string>("tagFilter");
-    const notes = tagFilter
+    const showArchived = this.context.workspaceState.get<boolean>("showArchived") ?? false;
+    let notes = tagFilter
       ? this.storage.getNotesByTag(tagFilter)
-      : this.storage.getNotes();
+      : showArchived
+        ? this.storage.getAllNotesIncludingArchived()
+        : this.storage.getNotes();
 
     return notes.map((note) => {
       const refCount = this.storage.getReferencesForNote(note.id).length;
       const tags = note.tags && note.tags.length > 0
         ? note.tags.map((t) => `#${t}`).join(" ")
         : "";
+      const archivedLabel = note.archived ? " $(archive)" : "";
       const item = new NoteItem(
         note.name,
         vscode.TreeItemCollapsibleState.Collapsed,
         note.filePath,
         "note"
       );
-      item.tooltip = `Updated: ${new Date(note.updatedAt).toLocaleString()}${tags ? `\nTags: ${tags}` : ""}`;
-      item.description = `${refCount === 1 ? "1 ref" : `${refCount} refs`}${tags ? `  ${tags}` : ""}`;
+      if (note.archived) {
+        item.iconPath = new vscode.ThemeIcon("archive");
+        item.contextValue = "note-archived";
+      }
+      item.tooltip = `Updated: ${new Date(note.updatedAt).toLocaleString()}${tags ? `\nTags: ${tags}` : ""}${note.archived ? "\n(Archived)" : ""}`;
+      item.description = `${refCount === 1 ? "1 ref" : `${refCount} refs`}${tags ? `  ${tags}` : ""}${archivedLabel}`;
       return item;
     });
   }
