@@ -32,6 +32,7 @@ import {
 import { registerChatParticipant } from "./chat";
 import { initCodeLensProvider, NotesCodeLensProvider } from "./codelens";
 import { initHoverProvider } from "./hoverProvider";
+import { getShowReferenceGraphCommand } from "./graphView";
 import { initInlineCompletionProvider } from "./inlineCompletion";
 import { NotesStorage } from "./storage";
 import { migrateIfNeeded } from "./migration";
@@ -174,6 +175,7 @@ export function activate(context: vscode.ExtensionContext) {
     unarchiveNote,
     toggleShowArchived,
     importFromClipboard,
+    getShowReferenceGraphCommand(storage),
     treeView,
     statusBarItem,
   );

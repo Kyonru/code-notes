@@ -170,6 +170,11 @@
         "command": "crosscodenotes.importFromClipboard",
         "title": "Codebase Notebook: Import from Clipboard",
         "icon": "$(clippy)"
+      },
+      {
+        "command": "crosscodenotes.showReferenceGraph",
+        "title": "Codebase Notebook: Show Reference Graph",
+        "icon": "$(type-hierarchy)"
       }
     ],
     "menus": {
