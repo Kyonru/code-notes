@@ -227,6 +227,11 @@
         "command": "crosscodenotes.refreshStaleAnnotations",
         "title": "Codebase Notebook: Refresh Stale Annotations (AI)",
         "icon": "$(sync)"
+      },
+      {
+        "command": "crosscodenotes.deleteAnnotation",
+        "title": "Codebase Notebook: Delete Annotation",
+        "icon": "$(trash)"
       }
     ],
     "menus": {
@@ -341,6 +346,26 @@
         },
         {
           "command": "crosscodenotes.viewComments",
+          "when": "view == codeNotesView && viewItem == reference-pinned-commented",
+          "group": "inline"
+        },
+        {
+          "command": "crosscodenotes.deleteAnnotation",
+          "when": "view == codeNotesView && viewItem == reference",
+          "group": "inline"
+        },
+        {
+          "command": "crosscodenotes.deleteAnnotation",
+          "when": "view == codeNotesView && viewItem == reference-pinned",
+          "group": "inline"
+        },
+        {
+          "command": "crosscodenotes.deleteAnnotation",
+          "when": "view == codeNotesView && viewItem == reference-commented",
+          "group": "inline"
+        },
+        {
+          "command": "crosscodenotes.deleteAnnotation",
           "when": "view == codeNotesView && viewItem == reference-pinned-commented",
           "group": "inline"
         }

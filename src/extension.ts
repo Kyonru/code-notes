@@ -36,6 +36,7 @@ import {
   getAutoTagCommand,
   getAskNotesCommand,
   getRefreshStaleAnnotationsCommand,
+  getDeleteAnnotationCommand,
 } from "./commands";
 import { registerChatParticipant } from "./chat";
 import { initCodeLensProvider, NotesCodeLensProvider } from "./codelens";
@@ -192,6 +193,7 @@ export function activate(context: vscode.ExtensionContext) {
     getAutoTagCommand(storage, notesTreeProvider),
     getAskNotesCommand(storage),
     getRefreshStaleAnnotationsCommand(storage, notesTreeProvider, provider),
+    getDeleteAnnotationCommand(storage, notesTreeProvider, provider),
     treeView,
     statusBarItem,
   );

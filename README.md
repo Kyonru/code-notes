@@ -107,6 +107,7 @@ Additional AI commands (Command Palette):
 | `Codebase Notebook: Import from Clipboard`     | Import references from clipboard markdown       |
 | `Codebase Notebook: Add Comment`               | Add a comment to a reference                    |
 | `Codebase Notebook: View Comments`             | View/delete comments on a reference             |
+| `Codebase Notebook: Delete Annotation`         | Delete a reference and its section from the note|
 | `Codebase Notebook: Change Notes Directory`    | Select / change the directory used for notes    |
 | `Codebase Notebook: Open Notes Directory`      | Open storage folder for notes                   |
 | `Codebase Notebook: Delete Note`               | Remove note                                     |

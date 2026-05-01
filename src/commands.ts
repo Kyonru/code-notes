@@ -1980,3 +1980,62 @@ export function getRefreshStaleAnnotationsCommand(
     }
   );
 }
+
+export function getDeleteAnnotationCommand(
+  storage: NotesStorage,
+  notesTreeProvider: NotesTreeProvider,
+  provider: NotesCodeLensProvider
+) {
+  return vscode.commands.registerCommand(
+    createCommandName("deleteAnnotation"),
+    async (item: NoteItem) => {
+      if (!item.referenceId) {
+        return;
+      }
+
+      const ref = storage.getAllReferences().find((r) => r.id === item.referenceId);
+      if (!ref) {
+        return;
+      }
+
+      const baseName = path.basename(ref.file);
+      const confirm = await vscode.window.showWarningMessage(
+        `Delete annotation "${baseName}:${ref.line}" and remove it from the note?`,
+        { modal: true },
+        "Delete"
+      );
+
+      if (confirm !== "Delete") {
+        return;
+      }
+
+      // Remove the section from the .md file
+      const note = storage.getNote(ref.noteId);
+      if (note && fs.existsSync(note.filePath)) {
+        let content = fs.readFileSync(note.filePath, "utf-8");
+        const heading = `## ${baseName}:${ref.line}`;
+        const headingIdx = content.indexOf(heading);
+
+        if (headingIdx !== -1) {
+          // Find the separator before this section
+          const beforeSection = content.lastIndexOf("\n---\n", headingIdx);
+          // Find the next section separator or end of file
+          const afterHeading = content.indexOf("\n---\n", headingIdx);
+          const nextSection = afterHeading !== -1
+            ? afterHeading + "\n---\n".length
+            : content.length;
+
+          const start = beforeSection !== -1 ? beforeSection : headingIdx;
+          content = content.slice(0, start) + content.slice(nextSection);
+          fs.writeFileSync(note.filePath, content, "utf-8");
+        }
+      }
+
+      // Remove from index
+      await storage.deleteReference(item.referenceId);
+      notesTreeProvider.refresh();
+      provider.refresh();
+      vscode.window.showInformationMessage("Annotation deleted.");
+    }
+  );
+}
