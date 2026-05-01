@@ -2696,3 +2696,177 @@ export function getSmartLinkingCommand(
     }
   );
 }
+
+export function getAnnotationQualityCommand(
+  storage: NotesStorage,
+  notesTreeProvider: NotesTreeProvider
+) {
+  return vscode.commands.registerCommand(
+    createCommandName("annotationQuality"),
+    async () => {
+      const allRefs = storage.getAllReferences();
+      if (allRefs.length === 0) {
+        vscode.window.showInformationMessage("No annotations to score.");
+        return;
+      }
+
+      const notes = storage.getAllNotesIncludingArchived();
+      const noteMap = new Map(notes.map((n) => [n.id, n.name]));
+
+      // Build compact representation with metadata for staleness detection
+      const refIndex = allRefs
+        .map((r, i) => {
+          const baseName = path.basename(r.file);
+          const noteName = noteMap.get(r.noteId) || r.noteId;
+          const age = Math.round(
+            (Date.now() - new Date(r.addedAt).getTime()) / (1000 * 60 * 60 * 24)
+          );
+          const fileExists = fs.existsSync(r.file);
+          return `[${i}] note="${noteName}" | ${baseName}:${r.line} | age=${age}d | exists=${fileExists} | "${r.annotation || "(empty)"}"`;
+        })
+        .join("\n");
+
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: "Scoring annotation quality…",
+          cancellable: true,
+        },
+        async (_progress, cancelToken) => {
+          const lm = getLMProvider();
+
+          const prompt =
+            `You are a code annotation quality assessor.\n\n` +
+            `## Annotations\n${refIndex}\n\n` +
+            `## Instructions\n` +
+            `Rate each annotation's quality and identify the worst ones that need improvement.\n` +
+            `Consider:\n` +
+            `- Vagueness (e.g., "this is important", "TODO", "fix later")\n` +
+            `- Empty or missing annotations\n` +
+            `- Staleness (very old annotations, file doesn't exist)\n` +
+            `- Too short to be useful\n` +
+            `- Redundancy (annotation just restates the filename/line)\n\n` +
+            `Return the top issues (max 10), one per line in this exact format:\n` +
+            `index|score|issue|rewrite\n\n` +
+            `Where:\n` +
+            `- index: the reference index number\n` +
+            `- score: quality 1-5 (1=terrible, 5=great)\n` +
+            `- issue: brief problem description (max 8 words)\n` +
+            `- rewrite: suggested better annotation (or "OK" if score >= 4)\n\n` +
+            `Only include annotations scoring 3 or below. If all are good, respond with "ALL_GOOD".`;
+
+          let responseText = "";
+          try {
+            responseText = await lm.sendRequest(
+              [{ role: "user", content: prompt }],
+              cancelToken
+            );
+          } catch (err: any) {
+            if (err instanceof vscode.CancellationError) {
+              return;
+            }
+            vscode.window.showErrorMessage(
+              `Language model error: ${err.message}`
+            );
+            return;
+          }
+
+          const trimmed = responseText.trim();
+          if (trimmed === "ALL_GOOD" || !trimmed) {
+            vscode.window.showInformationMessage(
+              "$(check) All annotations look good!"
+            );
+            return;
+          }
+
+          interface QualityIssue {
+            ref: typeof allRefs[0];
+            index: number;
+            score: number;
+            issue: string;
+            rewrite: string;
+          }
+
+          const issues: QualityIssue[] = [];
+          for (const line of trimmed.split("\n")) {
+            const match = line.match(/^(\d+)\|(\d)\|([^|]+)\|(.+)$/);
+            if (!match) { continue; }
+            const idx = parseInt(match[1], 10);
+            const score = parseInt(match[2], 10);
+            const issue = match[3].trim();
+            const rewrite = match[4].trim();
+            if (idx >= 0 && idx < allRefs.length && score >= 1 && score <= 5) {
+              issues.push({ ref: allRefs[idx], index: idx, score, issue, rewrite });
+            }
+          }
+
+          if (issues.length === 0) {
+            vscode.window.showInformationMessage(
+              "$(check) All annotations look good!"
+            );
+            return;
+          }
+
+          // Sort by score ascending (worst first)
+          issues.sort((a, b) => a.score - b.score);
+
+          const scoreIcon = (s: number) => {
+            if (s <= 1) { return "$(error)"; }
+            if (s <= 2) { return "$(warning)"; }
+            return "$(info)";
+          };
+
+          const items = issues.map((q) => {
+            const baseName = path.basename(q.ref.file);
+            const noteName = noteMap.get(q.ref.noteId) || q.ref.noteId;
+            return {
+              label: `${scoreIcon(q.score)} ${baseName}:${q.ref.line} (${q.score}/5)`,
+              description: q.issue,
+              detail: q.rewrite !== "OK"
+                ? `Rewrite: ${q.rewrite}`
+                : `Current: ${q.ref.annotation}`,
+              issue: q,
+            };
+          });
+
+          const picked = await vscode.window.showQuickPick(items, {
+            placeHolder: `${issues.length} annotation${issues.length > 1 ? "s" : ""} need improvement — select to apply rewrite`,
+            matchOnDetail: true,
+            matchOnDescription: true,
+            canPickMany: true,
+          });
+
+          if (!picked || picked.length === 0) {
+            return;
+          }
+
+          let updated = 0;
+          for (const item of picked) {
+            const { ref, rewrite } = item.issue;
+            if (rewrite === "OK") { continue; }
+
+            // Let user confirm/edit the rewrite
+            const edited = await vscode.window.showInputBox({
+              prompt: `Rewrite annotation for ${path.basename(ref.file)}:${ref.line}`,
+              value: rewrite,
+              title: `Quality Fix (was: "${ref.annotation || "(empty)"}")`,
+            });
+
+            if (edited === undefined) { continue; }
+
+            ref.annotation = edited;
+            await storage.updateReferences([ref]);
+            updated++;
+          }
+
+          if (updated > 0) {
+            notesTreeProvider.refresh();
+            vscode.window.showInformationMessage(
+              `Updated ${updated} annotation${updated > 1 ? "s" : ""}.`
+            );
+          }
+        }
+      );
+    }
+  );
+}

@@ -6,7 +6,6 @@
 
 ## AI-Enhanced Features
 
-- [ ] Smart linking (auto-detect related references and suggest cross-links)
 - [ ] Code change impact analysis (identify affected annotations from git diffs)
 - [ ] Auto-annotation from PR (suggest annotations for notable PR changes)
 - [ ] Knowledge gaps detection (find heavily-modified files with no annotations)
@@ -15,7 +14,6 @@
 - [ ] Code review assistant (surface relevant annotations during code review)
 - [ ] Dependency chain narrator (trace call chains from an annotated reference)
 - [ ] Note summarization on hover (AI one-liner in tree view tooltip)
-- [ ] Auto annotate, based on the current note, take context of what's being investigating and selected line / code and add an annotation about it in the current note. could be a new command
 
 ## Non-AI Features
 

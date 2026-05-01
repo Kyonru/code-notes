@@ -47,6 +47,7 @@ import {
   getSemanticSearchCommand,
   getAutoAnnotateCommand,
   getSmartLinkingCommand,
+  getAnnotationQualityCommand,
 } from "./commands";
 import { registerChatParticipant } from "./chat";
 import { initCodeLensProvider, NotesCodeLensProvider } from "./codelens";
@@ -278,6 +279,7 @@ export function activate(context: vscode.ExtensionContext) {
     getSemanticSearchCommand(storage),
     getAutoAnnotateCommand(context, storage, notesTreeProvider, provider),
     getSmartLinkingCommand(storage, notesTreeProvider),
+    getAnnotationQualityCommand(storage, notesTreeProvider),
     treeView,
     statusBarItem,
     badgeItem,

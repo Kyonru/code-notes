@@ -305,6 +305,11 @@
         "command": "crosscodenotes.smartLinking",
         "title": "Codebase Notebook: Smart Linking (AI)",
         "icon": "$(link)"
+      },
+      {
+        "command": "crosscodenotes.annotationQuality",
+        "title": "Codebase Notebook: Annotation Quality Score (AI)",
+        "icon": "$(checklist)"
       }
     ],
     "menus": {
