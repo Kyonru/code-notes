@@ -49,15 +49,15 @@ Codebase Notebook is a VS Code extension that lets you take structured notes acr
 
 ### 🤖 AI-Powered (Chat Participant)
 
-Use `@notebook` in VS Code Chat with these commands:
+Use `@codenotes` in VS Code Chat with these commands:
 
-| Command                   | Description                                                          |
-| ------------------------- | -------------------------------------------------------------------- |
-| `@notebook /annotate`     | Generate an annotation for the selected code and add it to your note |
-| `@notebook /summarize`    | Summarize all references in the current note                         |
-| `@notebook /relate`       | Find relationships between references in a note                      |
-| `@notebook /diff`         | Compare code at a reference with its current state                   |
-| `@notebook /suggest-note` | Suggest which note a code snippet belongs to                         |
+| Command                    | Description                                                          |
+| -------------------------- | -------------------------------------------------------------------- |
+| `@codenotes /annotate`     | Generate an annotation for the selected code and add it to your note |
+| `@codenotes /summarize`    | Summarize all references in the current note                         |
+| `@codenotes /relate`       | Find relationships between references in a note                      |
+| `@codenotes /diff`         | Compare code at a reference with its current state                   |
+| `@codenotes /suggest-note` | Suggest which note a code snippet belongs to                         |
 
 Additional AI commands (Command Palette):
 
@@ -109,43 +109,43 @@ Additional AI commands (Command Palette):
 | `crosscodenotes.notesDirectory`     | Custom directory for storing notes (supports `~`). Leave empty for default.                            |
 | `crosscodenotes.useWorkspaceFolder` | Store notes in `.codenotes/` inside the workspace root for team sharing.                               |
 | `crosscodenotes.modelFamily`        | Preferred AI model family (e.g., `gpt-4o`, `claude-sonnet`). Leave empty to choose from all available. |
-| `crosscodenotes.aiProvider`         | AI provider: `auto` (default), `vscode`, or `external`. Auto-detects VS Code LM or falls back to API. |
+| `crosscodenotes.aiProvider`         | AI provider: `auto` (default), `vscode`, or `external`. Auto-detects VS Code LM or falls back to API.  |
 | `crosscodenotes.aiEndpoint`         | Base URL for external AI API (OpenAI-compatible, e.g., `https://api.openai.com/v1` or Ollama).         |
-| `crosscodenotes.aiModel`            | Model name for external provider (e.g., `gpt-4o`, `claude-sonnet-4-20250514`, `llama3`).                    |
+| `crosscodenotes.aiModel`            | Model name for external provider (e.g., `gpt-4o`, `claude-sonnet-4-20250514`, `llama3`).               |
 
 ## 🎯 Core Commands
 
-| Command                                        | Description                                     |
-| ---------------------------------------------- | ----------------------------------------------- |
-| `Codebase Notebook: Create Note`               | Create a new note                               |
-| `Codebase Notebook: Create Note from Template` | Create from a predefined template               |
-| `Codebase Notebook: Select Note`               | Switch the active note                          |
-| `Codebase Notebook: Add Reference`             | Attach a code reference to a note               |
-| `Codebase Notebook: Quick Add Annotation`      | Fast inline annotation (no dialogs)             |
-| `Codebase Notebook: Bulk Add References`       | Add multiple references at once                 |
-| `Codebase Notebook: Go to Reference`           | Jump to referenced file + line                  |
-| `Codebase Notebook: View Note`                 | Open preview of current note                    |
-| `Codebase Notebook: Search Notes`              | Search existing notes                           |
-| `Codebase Notebook: Export Note`               | Export a note as Markdown or to clipboard       |
-| `Codebase Notebook: References to This File`   | Show notes referencing the active file          |
-| `Codebase Notebook: Show Reference Graph`      | Open interactive reference graph                |
-| `Codebase Notebook: Toggle Workspace Storage`  | Switch between global and `.codenotes/` storage |
-| `Codebase Notebook: Add Tag`                   | Add a tag to a note                             |
-| `Codebase Notebook: Filter by Tag`             | Filter tree view by tag                         |
-| `Codebase Notebook: Archive/Unarchive Note`    | Archive or restore a note                       |
-| `Codebase Notebook: Import from Clipboard`     | Import references from clipboard markdown       |
-| `Codebase Notebook: Add Comment`               | Add a comment to a reference                    |
-| `Codebase Notebook: View Comments`             | View/delete comments on a reference             |
-| `Codebase Notebook: Delete Annotation`         | Delete a reference and its section from the note|
-| `Codebase Notebook: Show Annotation Timeline`  | Chronological view of all annotations           |
-| `Codebase Notebook: Detect Broken References`  | Scan for references to deleted/moved files      |
-| `Codebase Notebook: View Annotation History`   | View revision history of a reference            |
-| `Codebase Notebook: Set AI API Key`            | Store API key securely for external AI provider |
-| `Codebase Notebook: Clear AI API Key`          | Remove stored AI API key                        |
-| `Codebase Notebook: Change Notes Directory`    | Select / change the directory used for notes    |
-| `Codebase Notebook: Open Notes Directory`      | Open storage folder for notes                   |
-| `Codebase Notebook: Delete Note`               | Remove note                                     |
-| `Codebase Notebook: Refresh Notes`             | Reload the notes list                           |
+| Command                                        | Description                                      |
+| ---------------------------------------------- | ------------------------------------------------ |
+| `Codebase Notebook: Create Note`               | Create a new note                                |
+| `Codebase Notebook: Create Note from Template` | Create from a predefined template                |
+| `Codebase Notebook: Select Note`               | Switch the active note                           |
+| `Codebase Notebook: Add Reference`             | Attach a code reference to a note                |
+| `Codebase Notebook: Quick Add Annotation`      | Fast inline annotation (no dialogs)              |
+| `Codebase Notebook: Bulk Add References`       | Add multiple references at once                  |
+| `Codebase Notebook: Go to Reference`           | Jump to referenced file + line                   |
+| `Codebase Notebook: View Note`                 | Open preview of current note                     |
+| `Codebase Notebook: Search Notes`              | Search existing notes                            |
+| `Codebase Notebook: Export Note`               | Export a note as Markdown or to clipboard        |
+| `Codebase Notebook: References to This File`   | Show notes referencing the active file           |
+| `Codebase Notebook: Show Reference Graph`      | Open interactive reference graph                 |
+| `Codebase Notebook: Toggle Workspace Storage`  | Switch between global and `.codenotes/` storage  |
+| `Codebase Notebook: Add Tag`                   | Add a tag to a note                              |
+| `Codebase Notebook: Filter by Tag`             | Filter tree view by tag                          |
+| `Codebase Notebook: Archive/Unarchive Note`    | Archive or restore a note                        |
+| `Codebase Notebook: Import from Clipboard`     | Import references from clipboard markdown        |
+| `Codebase Notebook: Add Comment`               | Add a comment to a reference                     |
+| `Codebase Notebook: View Comments`             | View/delete comments on a reference              |
+| `Codebase Notebook: Delete Annotation`         | Delete a reference and its section from the note |
+| `Codebase Notebook: Show Annotation Timeline`  | Chronological view of all annotations            |
+| `Codebase Notebook: Detect Broken References`  | Scan for references to deleted/moved files       |
+| `Codebase Notebook: View Annotation History`   | View revision history of a reference             |
+| `Codebase Notebook: Set AI API Key`            | Store API key securely for external AI provider  |
+| `Codebase Notebook: Clear AI API Key`          | Remove stored AI API key                         |
+| `Codebase Notebook: Change Notes Directory`    | Select / change the directory used for notes     |
+| `Codebase Notebook: Open Notes Directory`      | Open storage folder for notes                    |
+| `Codebase Notebook: Delete Note`               | Remove note                                      |
+| `Codebase Notebook: Refresh Notes`             | Reload the notes list                            |
 
 You'll find most actions in:
 

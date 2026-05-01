@@ -4,8 +4,8 @@
   "sponsor": {
     "url": "https://github.com/sponsors/kyonru"
   },
-  "description": "An extension to help taking note across the codebase",
-  "version": "0.3.0",
+  "description": "Code Notes is a Markdown-based annotation tool with built-in (optional) AI helpers, designed to help developers document, cross-reference, and understand codebases faster.",
+  "version": "0.3.1",
   "icon": "icon.png",
   "publisher": "SolenodonteLabs",
   "engines": {
