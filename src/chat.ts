@@ -1,8 +1,9 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
+import { execSync } from "child_process";
 import { NotesStorage } from "./storage";
-import { NoteEntry } from "./types";
+import { NoteEntry, ReferenceEntry } from "./types";
 import { createCommandName } from "./utils";
 
 const PARTICIPANT_ID = "crosscodenotes.assistant";
@@ -35,6 +36,9 @@ function makeHandler(
       }
       if (request.command === "relate") {
         return await handleRelate(request, stream, storage, token, context);
+      }
+      if (request.command === "diff") {
+        return await handleDiff(request, stream, storage, token, context);
       }
       return await handleDefault(request, stream, storage, token);
     } catch (err) {
@@ -325,6 +329,229 @@ async function handleRelate(
       if (fs.existsSync(note.filePath)) {
         stream.reference(vscode.Uri.file(note.filePath));
       }
+    }
+  }
+
+  return {};
+}
+
+// --- Diff types ---
+
+interface RefStatus {
+  ref: ReferenceEntry;
+  fileExists: boolean;
+  currentCode: string | null;
+  hasChanged: boolean;
+  lastCommit: string | undefined;
+}
+
+// --- Handlers ---
+
+async function handleDiff(
+  request: vscode.ChatRequest,
+  stream: vscode.ChatResponseStream,
+  storage: NotesStorage,
+  token: vscode.CancellationToken,
+  context: vscode.ExtensionContext,
+): Promise<vscode.ChatResult> {
+  const notes = storage.getNotes();
+
+  if (notes.length === 0) {
+    stream.markdown(
+      "You don't have any notes yet. Create one with **Codebase Notebook: Create Note**.",
+    );
+    return {};
+  }
+
+  // Resolve scope: "all" keyword, specific note name, or active note
+  const query = request.prompt.trim().toLowerCase();
+  const checkAll = query === "all";
+
+  let targets: typeof notes;
+
+  if (checkAll) {
+    targets = notes;
+  } else {
+    let targetNote = query
+      ? notes.find((n) => n.name.toLowerCase().includes(query)) ?? null
+      : null;
+
+    if (!targetNote) {
+      const currentNotePath = context.workspaceState.get<string>("currentNote");
+      const activeId = currentNotePath
+        ? path.basename(currentNotePath, ".md")
+        : null;
+      targetNote = activeId
+        ? (notes.find((n) => n.id === activeId) ?? null)
+        : null;
+    }
+
+    if (!targetNote) {
+      stream.markdown(
+        "Specify a note name, type `all` to check every note, or select a note first with **Codebase Notebook: Select Note**.\n\n" +
+          `Available notes: ${notes.map((n) => `\`${n.name}\``).join(", ")}`,
+      );
+      return {};
+    }
+
+    targets = [targetNote];
+  }
+
+  const label =
+    targets.length === 1 ? `"${targets[0].name}"` : `all ${targets.length} notes`;
+  stream.progress(`Checking references in ${label} against current code…`);
+
+  // --- Check every reference ---
+  const workspaceRoot =
+    vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? "";
+
+  const normalize = (s: string) =>
+    s
+      .split("\n")
+      .map((l) => l.trimEnd())
+      .join("\n")
+      .trim();
+
+  const gitLastCommit = (file: string): string | undefined => {
+    try {
+      return execSync(
+        `git log -1 --format="%ar by %an — %s" -- "${file}"`,
+        { cwd: workspaceRoot || path.dirname(file), timeout: 3000, encoding: "utf-8" },
+      ).trim() || undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
+  const statuses: (RefStatus & { noteName: string })[] = [];
+
+  for (const note of targets) {
+    for (const ref of storage.getReferencesForNote(note.id)) {
+      if (!fs.existsSync(ref.file)) {
+        statuses.push({
+          ref,
+          noteName: note.name,
+          fileExists: false,
+          currentCode: null,
+          hasChanged: true,
+          lastCommit: undefined,
+        });
+        continue;
+      }
+
+      const fileLines = fs.readFileSync(ref.file, "utf-8").split("\n");
+      const snippetLineCount = ref.codeSnippet.split("\n").length;
+      const startIdx = ref.line - 1;
+      const currentCode = fileLines
+        .slice(startIdx, startIdx + snippetLineCount)
+        .join("\n");
+
+      statuses.push({
+        ref,
+        noteName: note.name,
+        fileExists: true,
+        currentCode,
+        hasChanged: normalize(currentCode) !== normalize(ref.codeSnippet),
+        lastCommit: gitLastCommit(ref.file),
+      });
+    }
+  }
+
+  const changed = statuses.filter((s) => s.hasChanged);
+  const total = statuses.length;
+
+  if (total === 0) {
+    stream.markdown(`No references found in ${label}.`);
+    return {};
+  }
+
+  if (changed.length === 0) {
+    stream.markdown(
+      `✅ All **${total}** reference${total === 1 ? "" : "s"} in ${label} match the current code — no stale annotations.`,
+    );
+    return {};
+  }
+
+  stream.markdown(
+    `Found **${changed.length}** stale reference${changed.length === 1 ? "" : "s"} out of ${total} in ${label}.\n\n`,
+  );
+
+  // --- Report each changed reference ---
+  for (const s of changed) {
+    const baseName = path.basename(s.ref.file);
+    const heading = checkAll
+      ? `### \`${s.noteName}\` › \`${baseName}:${s.ref.line}\``
+      : `### \`${baseName}:${s.ref.line}\``;
+
+    if (!s.fileExists) {
+      stream.markdown(`${heading} — ⚠️ file deleted\n\n`);
+      if (s.ref.annotation) {
+        stream.markdown(`> ${s.ref.annotation}\n\n`);
+      }
+      continue;
+    }
+
+    stream.markdown(`${heading}\n\n`);
+
+    if (s.lastCommit) {
+      stream.markdown(`_Last commit: ${s.lastCommit}_\n\n`);
+    }
+
+    if (s.ref.annotation) {
+      stream.markdown(`**Annotation:** ${s.ref.annotation}\n\n`);
+    }
+
+    stream.markdown(
+      `**Was:**\n\`\`\`${s.ref.language}\n${s.ref.codeSnippet}\n\`\`\`\n\n` +
+        `**Now:**\n\`\`\`${s.ref.language}\n${s.currentCode}\n\`\`\`\n\n`,
+    );
+
+    stream.reference(
+      new vscode.Location(
+        vscode.Uri.file(s.ref.file),
+        new vscode.Range(s.ref.line - 1, 0, s.ref.line - 1, 0),
+      ),
+    );
+  }
+
+  // --- LLM assessment of annotation accuracy ---
+  const assessable = changed.filter((s) => s.fileExists && s.ref.codeSnippet);
+  if (assessable.length === 0 || token.isCancellationRequested) {
+    return {};
+  }
+
+  stream.progress("Assessing annotation accuracy…");
+
+  const diffContext = assessable
+    .map((s) => {
+      const baseName = path.basename(s.ref.file);
+      return (
+        `### ${s.noteName} › ${baseName}:${s.ref.line}\n` +
+        (s.ref.annotation ? `Annotation: "${s.ref.annotation}"\n` : "") +
+        `Was:\n\`\`\`${s.ref.language}\n${s.ref.codeSnippet}\n\`\`\`\n` +
+        `Now:\n\`\`\`${s.ref.language}\n${s.currentCode}\n\`\`\``
+      );
+    })
+    .join("\n\n");
+
+  const messages = [
+    vscode.LanguageModelChatMessage.User(
+      `A developer's code notes have stale references — the annotated code has changed.\n\n` +
+        `For each reference, assess:\n` +
+        `1. Is the existing annotation still accurate?\n` +
+        `2. If not, what is now wrong or misleading?\n` +
+        `3. Suggest a revised annotation in one sentence.\n\n` +
+        `Be direct. Use the reference heading, then your assessment.\n\n` +
+        diffContext,
+    ),
+  ];
+
+  stream.markdown("---\n\n**AI assessment**\n\n");
+
+  const llmResponse = await request.model.sendRequest(messages, {}, token);
+  for await (const chunk of llmResponse.stream) {
+    if (chunk instanceof vscode.LanguageModelTextPart) {
+      stream.markdown(chunk.value);
     }
   }
 

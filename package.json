@@ -176,6 +176,10 @@
           {
             "name": "relate",
             "description": "Find connections between the active note and your other notes"
+          },
+          {
+            "name": "diff",
+            "description": "Check if referenced code has changed since it was annotated. Optionally pass a note name or 'all'"
           }
         ]
       }
