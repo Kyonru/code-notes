@@ -59,6 +59,98 @@ export function getCreateNoteCommand(
   );
 }
 
+const NOTE_TEMPLATES: Array<{
+  label: string;
+  description: string;
+  content: (name: string) => string;
+}> = [
+    {
+      label: "Bug Investigation",
+      description: "Track a bug from symptoms to root cause",
+      content: (name) =>
+        `# ${name}\n\n## Symptoms\n\n\n\n## Steps to Reproduce\n\n1. \n\n## Root Cause\n\n\n\n## Fix\n\n\n`,
+    },
+    {
+      label: "Code Review",
+      description: "Notes for reviewing a PR or module",
+      content: (name) =>
+        `# ${name}\n\n## Overview\n\n\n\n## Key Changes\n\n\n\n## Concerns\n\n\n\n## Suggestions\n\n\n`,
+    },
+    {
+      label: "Feature Exploration",
+      description: "Research and plan a new feature",
+      content: (name) =>
+        `# ${name}\n\n## Goal\n\n\n\n## Relevant Code\n\n\n\n## Approach\n\n\n\n## Open Questions\n\n\n`,
+    },
+    {
+      label: "Architecture Decision",
+      description: "Document a technical decision (ADR-style)",
+      content: (name) =>
+        `# ${name}\n\n## Context\n\n\n\n## Decision\n\n\n\n## Alternatives Considered\n\n\n\n## Consequences\n\n\n`,
+    },
+    {
+      label: "Learning Notes",
+      description: "Capture learnings about a codebase area",
+      content: (name) =>
+        `# ${name}\n\n## Summary\n\n\n\n## Key Concepts\n\n\n\n## Code Patterns\n\n\n\n## Questions\n\n\n`,
+    },
+  ];
+
+export function getCreateNoteFromTemplateCommand(
+  context: vscode.ExtensionContext,
+  storage: NotesStorage,
+  _notesTreeProvider: NotesTreeProvider
+) {
+  return vscode.commands.registerCommand(
+    createCommandName("createNoteFromTemplate"),
+    async () => {
+      const selected = await vscode.window.showQuickPick(
+        NOTE_TEMPLATES.map((t) => ({
+          label: t.label,
+          description: t.description,
+        })),
+        { placeHolder: "Select a template" }
+      );
+
+      if (!selected) {
+        return;
+      }
+
+      const template = NOTE_TEMPLATES.find((t) => t.label === selected.label)!;
+
+      const noteName = await vscode.window.showInputBox({
+        prompt: "Enter note name",
+        placeHolder: `my-${selected.label.toLowerCase().replace(/\s+/g, "-")}`,
+      });
+
+      if (!noteName) {
+        return;
+      }
+
+      const slugId = noteName.replace(/[^a-z0-9-_]/gi, "-").toLowerCase();
+      const alreadyExists = storage.noteExists(slugId);
+
+      if (alreadyExists) {
+        vscode.window.showInformationMessage(
+          `Note "${noteName}" already exists.`
+        );
+        return;
+      }
+
+      const note = await storage.createNote(noteName, template.content(noteName));
+
+      vscode.window.showInformationMessage(
+        `Created note from "${selected.label}" template: ${note.name}`
+      );
+
+      context.workspaceState.update("currentNote", note.filePath);
+      await vscode.commands.executeCommand(createCommandName("refreshTree"));
+      const doc = await vscode.workspace.openTextDocument(note.filePath);
+      await vscode.window.showTextDocument(doc);
+    }
+  );
+}
+
 export function getSelectNoteCommand(
   context: vscode.ExtensionContext,
   storage: NotesStorage,

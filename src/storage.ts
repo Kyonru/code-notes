@@ -43,7 +43,7 @@ export class NotesStorage {
 
   // --- Notes ---
 
-  async createNote(name: string): Promise<NoteEntry> {
+  async createNote(name: string, content?: string): Promise<NoteEntry> {
     const id = slugify(name);
     const filePath = path.join(this.notesDir, `${id}.md`);
 
@@ -56,7 +56,7 @@ export class NotesStorage {
         createdAt: now,
         updatedAt: now,
       };
-      fs.writeFileSync(filePath, `# ${name}\n\n`);
+      fs.writeFileSync(filePath, content ?? `# ${name}\n\n`);
       this.index.notes[id] = entry;
       await this.saveIndex();
     }

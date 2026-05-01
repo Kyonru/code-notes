@@ -66,6 +66,11 @@
         "icon": "$(new-file)"
       },
       {
+        "command": "crosscodenotes.createNoteFromTemplate",
+        "title": "Codebase Notebook: Create Note from Template",
+        "icon": "$(file-symlink-file)"
+      },
+      {
         "command": "crosscodenotes.selectNote",
         "title": "Codebase Notebook: Select Note"
       },

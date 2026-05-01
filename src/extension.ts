@@ -11,6 +11,7 @@ import {
   getArchiveNoteCommand,
   getBulkAddReferencesCommand,
   getCreateNoteCommand,
+  getCreateNoteFromTemplateCommand,
   getDeleteNoteCommand,
   getFilterByTagCommand,
   getGoToReferenceCommand,
@@ -79,6 +80,7 @@ export function activate(context: vscode.ExtensionContext) {
   };
 
   const createNote = getCreateNoteCommand(context, storage, notesTreeProvider);
+  const createNoteFromTemplate = getCreateNoteFromTemplateCommand(context, storage, notesTreeProvider);
   const selectNote = getSelectNoteCommand(context, storage, notesTreeProvider);
   const addReference = getAddReferenceCommand(
     context,
@@ -140,6 +142,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     createNote,
+    createNoteFromTemplate,
     selectNote,
     addReference,
     goToReference,
