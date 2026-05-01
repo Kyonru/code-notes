@@ -40,6 +40,9 @@ function makeHandler(
       if (request.command === "diff") {
         return await handleDiff(request, stream, storage, token, context);
       }
+      if (request.command === "suggest-note") {
+        return await handleSuggestNote(request, stream, storage, token);
+      }
       return await handleDefault(request, stream, storage, token);
     } catch (err) {
       if (err instanceof vscode.LanguageModelError) {
@@ -330,6 +333,129 @@ async function handleRelate(
         stream.reference(vscode.Uri.file(note.filePath));
       }
     }
+  }
+
+  return {};
+}
+
+async function handleSuggestNote(
+  request: vscode.ChatRequest,
+  stream: vscode.ChatResponseStream,
+  storage: NotesStorage,
+  token: vscode.CancellationToken,
+): Promise<vscode.ChatResult> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    stream.markdown(
+      "Open a file and select the code you want to file, then try again.",
+    );
+    return {};
+  }
+
+  const notes = storage.getNotes();
+  if (notes.length === 0) {
+    stream.markdown(
+      "You don't have any notes yet. Create one first with **Codebase Notebook: Create Note**.",
+    );
+    return {};
+  }
+
+  const sel = editor.selection;
+  const codeSnippet =
+    editor.document.getText(sel) || editor.document.lineAt(sel.start.line).text;
+  const file = editor.document.fileName;
+  const line = sel.start.line + 1;
+  const language = editor.document.languageId;
+  const baseName = path.basename(file);
+
+  stream.progress(`Finding the best note for \`${baseName}:${line}\`…`);
+
+  const notesContext = buildNotesContext(storage);
+  const noteIds = notes.map((n) => `"${n.id}"`).join(", ");
+  const hasSecond = notes.length >= 2;
+
+  const messages = [
+    vscode.LanguageModelChatMessage.User(
+      `You are helping a developer file a code reference into the right note in their "Codebase Notebook".\n\n` +
+        `## Existing notes\n${notesContext}\n\n` +
+        `## Code to file\n` +
+        `File: ${baseName}, Line: ${line}\n` +
+        `\`\`\`${language}\n${codeSnippet}\n\`\`\`\n` +
+        (request.prompt.trim()
+          ? `\nContext from the developer: ${request.prompt}\n`
+          : "") +
+        `\n## Instructions\n` +
+        `Available note IDs: ${noteIds}\n` +
+        `Respond in exactly this format with no preamble or extra text:\n` +
+        `NOTE: <best-matching note-id>\n` +
+        (hasSecond ? `SECOND_NOTE: <second-best note-id or "none">\n` : "") +
+        `ANNOTATION: <1–2 sentence annotation for this specific code>\n` +
+        `REASON: <1–2 sentences explaining why this note fits best>`,
+    ),
+  ];
+
+  // Accumulate the full response so we can parse structured fields before
+  // rendering — the response is short so this doesn't feel slow
+  let raw = "";
+  const response = await request.model.sendRequest(messages, {}, token);
+  for await (const chunk of response.stream) {
+    if (chunk instanceof vscode.LanguageModelTextPart) {
+      raw += chunk.value;
+    }
+  }
+
+  // Parse structured fields
+  const get = (field: string) =>
+    raw.match(new RegExp(`^${field}:\\s*(.+)$`, "m"))?.[1]?.trim() ?? "";
+
+  const primaryId = get("NOTE");
+  const secondId = get("SECOND_NOTE");
+  const annotation = get("ANNOTATION");
+  const reason = get("REASON");
+
+  // Fuzzy-match against known note IDs (guard against LLM drift)
+  const resolveNote = (id: string) =>
+    storage.getNote(id) ??
+    notes.find((n) => n.name.toLowerCase() === id.toLowerCase()) ??
+    null;
+
+  const primaryNote = resolveNote(primaryId);
+
+  if (!primaryNote) {
+    // Parsing failed — surface raw response rather than silently doing nothing
+    stream.markdown(
+      "_Could not determine a suggestion. Raw model response:_\n\n" + raw,
+    );
+    return {};
+  }
+
+  const secondNote =
+    secondId && secondId !== "none" ? resolveNote(secondId) : null;
+
+  // --- Render ---
+  stream.markdown(`**Best match: \`${primaryNote.name}\`**\n\n`);
+  if (reason) {
+    stream.markdown(`${reason}\n\n`);
+  }
+  if (annotation) {
+    stream.markdown(`**Generated annotation:**\n\n> ${annotation}\n\n`);
+  }
+
+  stream.reference(vscode.Uri.file(primaryNote.filePath));
+
+  stream.button({
+    command: createCommandName("applyAnnotatedReference"),
+    title: `$(notebook) Add to "${primaryNote.name}"`,
+    arguments: [{ noteId: primaryNote.id, file, line, codeSnippet, language, annotation }],
+  });
+
+  if (secondNote) {
+    stream.markdown(`\n_Alternative: \`${secondNote.name}\`_\n\n`);
+    stream.button({
+      command: createCommandName("applyAnnotatedReference"),
+      title: `Add to "${secondNote.name}"`,
+      arguments: [{ noteId: secondNote.id, file, line, codeSnippet, language, annotation }],
+    });
   }
 
   return {};

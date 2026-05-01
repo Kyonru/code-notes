@@ -180,6 +180,10 @@
           {
             "name": "diff",
             "description": "Check if referenced code has changed since it was annotated. Optionally pass a note name or 'all'"
+          },
+          {
+            "name": "suggest-note",
+            "description": "Suggest which existing note best fits the selected code, with a generated annotation"
           }
         ]
       }
