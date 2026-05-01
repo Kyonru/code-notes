@@ -1,6 +1,7 @@
 // extension.ts
 import * as vscode from "vscode";
 import * as path from "path";
+import * as fs from "fs";
 import { createCommandName, getNotesDir } from "./utils";
 import { NotesTreeProvider, NotesTreeDragAndDropController } from "./treeView";
 import {
@@ -69,6 +70,8 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.commands.executeCommand(createCommandName("refreshTree"));
       // Scan for broken references silently on workspace open
       detectBrokenReferences(storage, notesTreeProvider, provider, true);
+      // Update stale/broken badge
+      updateBadge();
     });
 
   const provider = new NotesCodeLensProvider(storage);
@@ -89,6 +92,63 @@ export function activate(context: vscode.ExtensionContext) {
     100,
   );
   statusBarItem.command = createCommandName("selectNote");
+
+  // Stale/broken annotation badge
+  const badgeItem = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Right,
+    99,
+  );
+  badgeItem.command = createCommandName("refreshStaleAnnotations");
+
+  const updateBadge = () => {
+    const allRefs = storage.getAllReferences();
+    let staleCount = 0;
+    let brokenCount = 0;
+
+    for (const ref of allRefs) {
+      if (!fs.existsSync(ref.file)) {
+        brokenCount++;
+        continue;
+      }
+      if (!ref.codeSnippet) {
+        continue;
+      }
+      try {
+        const content = fs.readFileSync(ref.file, "utf-8");
+        const lines = content.split(/\r?\n/);
+        const lineIdx = ref.line - 1;
+        if (lineIdx < 0 || lineIdx >= lines.length) {
+          continue;
+        }
+        const snippetLines = ref.codeSnippet.split(/\r?\n/).length;
+        const start = Math.max(0, lineIdx);
+        const end = Math.min(lines.length, lineIdx + snippetLines);
+        const currentCode = lines.slice(start, end).join("\n");
+        if (currentCode.trim() !== ref.codeSnippet.trim()) {
+          staleCount++;
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    const total = staleCount + brokenCount;
+    if (total > 0) {
+      const parts: string[] = [];
+      if (staleCount > 0) {
+        parts.push(`${staleCount} stale`);
+      }
+      if (brokenCount > 0) {
+        parts.push(`${brokenCount} broken`);
+      }
+      badgeItem.text = `$(alert) ${total}`;
+      badgeItem.tooltip = `Annotations: ${parts.join(", ")}. Click to fix.`;
+      badgeItem.backgroundColor = new vscode.ThemeColor("statusBarItem.warningBackground");
+      badgeItem.show();
+    } else {
+      badgeItem.hide();
+    }
+  };
 
   const updateStatusBar = () => {
     const currentNote = context.workspaceState.get<string>("currentNote");
@@ -212,6 +272,7 @@ export function activate(context: vscode.ExtensionContext) {
     getDetectBrokenReferencesCommand(storage, notesTreeProvider, provider),
     treeView,
     statusBarItem,
+    badgeItem,
   );
 }
 

@@ -16,6 +16,7 @@
 - [ ] Code review assistant (surface relevant annotations during code review)
 - [ ] Dependency chain narrator (trace call chains from an annotated reference)
 - [ ] Note summarization on hover (AI one-liner in tree view tooltip)
+- [ ] Auto annotate, based on the current note, take context of what's being investigating and selected line / code and add an annotation about it in the current note. could be a new command
 
 ## Non-AI Features
 
