@@ -115,6 +115,16 @@
         "command": "crosscodenotes.changeNotesDirectory",
         "title": "Codebase Notebook: Change Notes Directory",
         "icon": "$(settings)"
+      },
+      {
+        "command": "crosscodenotes.suggestNote",
+        "title": "Codebase Notebook: Suggest Note for Selection",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "crosscodenotes.togglePinReference",
+        "title": "Codebase Notebook: Pin/Unpin Reference",
+        "icon": "$(pin)"
       }
     ],
     "menus": {
@@ -154,9 +164,57 @@
           "command": "crosscodenotes.deleteNote",
           "when": "view == codeNotesView && viewItem == note",
           "group": "inline"
+        },
+        {
+          "command": "crosscodenotes.togglePinReference",
+          "when": "view == codeNotesView && viewItem == reference",
+          "group": "inline"
+        },
+        {
+          "command": "crosscodenotes.togglePinReference",
+          "when": "view == codeNotesView && viewItem == reference-pinned",
+          "group": "inline"
+        }
+      ],
+      "editor/context": [
+        {
+          "submenu": "crosscodenotes.editorContext",
+          "group": "crosscodenotes@1"
+        }
+      ],
+      "crosscodenotes.editorContext": [
+        {
+          "command": "crosscodenotes.addReference",
+          "group": "1_notes@1"
+        },
+        {
+          "command": "crosscodenotes.suggestNote",
+          "group": "1_notes@2"
+        },
+        {
+          "command": "crosscodenotes.createNote",
+          "group": "2_manage@1"
+        },
+        {
+          "command": "crosscodenotes.selectNote",
+          "group": "2_manage@2"
+        },
+        {
+          "command": "crosscodenotes.viewNote",
+          "group": "2_manage@3"
+        },
+        {
+          "command": "crosscodenotes.searchNotes",
+          "group": "3_search@1"
         }
       ]
     },
+    "submenus": [
+      {
+        "id": "crosscodenotes.editorContext",
+        "label": "Codebase Notebook"
+      }
+    ],
     "chatParticipants": [
       {
         "id": "crosscodenotes.assistant",
@@ -193,6 +251,11 @@
         "command": "crosscodenotes.addReference",
         "key": "ctrl+shift+j",
         "mac": "cmd+shift+j"
+      },
+      {
+        "command": "crosscodenotes.suggestNote",
+        "key": "ctrl+shift+k",
+        "mac": "cmd+shift+k"
       }
     ]
   },

@@ -10,7 +10,8 @@ export class NoteItem extends vscode.TreeItem {
     public readonly filePath?: string,
     public readonly type?: "note" | "reference",
     public readonly referencePath?: string,
-    public readonly lineNumber?: number
+    public readonly lineNumber?: number,
+    public readonly referenceId?: string
   ) {
     super(label, collapsibleState);
 
@@ -83,14 +84,21 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteItem> {
         noteItem.filePath,
         "reference",
         ref.file,
-        ref.line
+        ref.line,
+        ref.id
       );
 
+      if (ref.pinned) {
+        item.iconPath = new vscode.ThemeIcon("pin");
+        item.contextValue = "reference-pinned";
+      }
+
       item.tooltip = ref.annotation || ref.file;
-      item.description = ref.annotation
-        ? ref.annotation.substring(0, 50) +
+      item.description = (ref.pinned ? "$(pin) " : "") +
+        (ref.annotation
+          ? ref.annotation.substring(0, 50) +
           (ref.annotation.length > 50 ? "..." : "")
-        : "";
+          : "");
       item.command = {
         command: createCommandName("goToReference"),
         title: "Go to Reference",

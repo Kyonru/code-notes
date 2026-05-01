@@ -13,6 +13,8 @@ import {
   getOpenNoteFromTreeCommand,
   getOpenNotesDirCommand,
   getSelectNoteCommand,
+  getSuggestNoteCommand,
+  getTogglePinReferenceCommand,
   getViewNoteAtCommand,
   getViewNoteCommand,
   getSearchNotesCommand,
@@ -94,6 +96,16 @@ export function activate(context: vscode.ExtensionContext) {
     notesTreeProvider,
     provider,
   );
+  const suggestNote = getSuggestNoteCommand(
+    context,
+    storage,
+    notesTreeProvider,
+    provider,
+  );
+  const togglePinReference = getTogglePinReferenceCommand(
+    storage,
+    notesTreeProvider,
+  );
 
   registerChatParticipant(context, storage);
   initInlineCompletionProvider(context, storage);
@@ -114,6 +126,8 @@ export function activate(context: vscode.ExtensionContext) {
     searchNotes,
     openNoteFromTree,
     applyAnnotatedReference,
+    suggestNote,
+    togglePinReference,
     treeView,
     statusBarItem,
   );

@@ -7,6 +7,7 @@ import { createCommandName, getDefaultNotesDir, getNotesDir } from "./utils";
 import { NotesCodeLensProvider } from "./codelens";
 import { EXTENSION_NAME } from "./constants";
 import { NotesStorage } from "./storage";
+import { NoteEntry } from "./types";
 
 export function gerRefreshTreeCommand(
   notesTreeProvider: NotesTreeProvider,
@@ -536,6 +537,221 @@ export function getChangeNotesDirectoryCommand(
         notesTreeProvider.refresh();
         provider.refresh();
       }
+    }
+  );
+}
+
+export function getTogglePinReferenceCommand(
+  storage: NotesStorage,
+  notesTreeProvider: NotesTreeProvider
+) {
+  return vscode.commands.registerCommand(
+    createCommandName("togglePinReference"),
+    async (item: NoteItem) => {
+      if (!item.referenceId) {
+        return;
+      }
+
+      const pinned = await storage.togglePinReference(item.referenceId);
+      notesTreeProvider.refresh();
+
+      vscode.window.showInformationMessage(
+        pinned ? "Reference pinned" : "Reference unpinned"
+      );
+    }
+  );
+}
+
+export function getSuggestNoteCommand(
+  context: vscode.ExtensionContext,
+  storage: NotesStorage,
+  notesTreeProvider: NotesTreeProvider,
+  provider: NotesCodeLensProvider
+) {
+  return vscode.commands.registerCommand(
+    createCommandName("suggestNote"),
+    async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showErrorMessage("No active editor!");
+        return;
+      }
+
+      const notes = storage.getNotes();
+      if (notes.length === 0) {
+        const action = await vscode.window.showWarningMessage(
+          "No notes found. Create one first!",
+          "Create Note"
+        );
+        if (action === "Create Note") {
+          await vscode.commands.executeCommand(createCommandName("createNote"));
+        }
+        return;
+      }
+
+      const document = editor.document;
+      const selection = editor.selection;
+      const codeSnippet =
+        document.getText(selection) ||
+        document.lineAt(selection.start.line).text;
+      const file = document.fileName;
+      const lineNumber = selection.start.line + 1;
+      const language = document.languageId;
+      const baseName = path.basename(file);
+
+      // Build notes context for the LLM
+      const notesSummary = notes
+        .map((n) => {
+          const refs = storage.getReferencesForNote(n.id);
+          const refLines = refs
+            .map(
+              (r) =>
+                `  - ${path.basename(r.file)}:${r.line}${r.annotation ? ` — ${r.annotation}` : ""}`
+            )
+            .join("\n");
+          return `Note "${n.name}" (id: ${n.id}), ${refs.length} ref(s):\n${refLines}`;
+        })
+        .join("\n\n");
+
+      const noteIds = notes.map((n) => `"${n.id}"`).join(", ");
+
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `Suggesting note for ${baseName}:${lineNumber}…`,
+          cancellable: true,
+        },
+        async (_progress, cancelToken) => {
+          const models = await vscode.lm.selectChatModels({
+            vendor: "copilot",
+            family: "gpt-4o",
+          });
+
+          if (models.length === 0) {
+            vscode.window.showErrorMessage(
+              "No language model available. Make sure GitHub Copilot is active."
+            );
+            return;
+          }
+
+          const model = models[0];
+
+          const messages = [
+            vscode.LanguageModelChatMessage.User(
+              `You are helping a developer file a code reference into the right note.\n\n` +
+              `## Existing notes\n${notesSummary}\n\n` +
+              `## Code to file\nFile: ${baseName}, Line: ${lineNumber}\n` +
+              `\`\`\`${language}\n${codeSnippet}\n\`\`\`\n\n` +
+              `## Instructions\nAvailable note IDs: ${noteIds}\n` +
+              `Respond in exactly this format with no preamble or extra text:\n` +
+              `NOTE: <best-matching note-id>\n` +
+              `ANNOTATION: <1–2 sentence annotation for this code>\n` +
+              `REASON: <1 sentence explaining why this note fits best>`
+            ),
+          ];
+
+          let raw = "";
+          try {
+            const response = await model.sendRequest(messages, {}, cancelToken);
+            for await (const chunk of response.stream) {
+              if (chunk instanceof vscode.LanguageModelTextPart) {
+                raw += chunk.value;
+              }
+            }
+          } catch (err: any) {
+            if (err instanceof vscode.CancellationError) {
+              return;
+            }
+            vscode.window.showErrorMessage(
+              `Language model error: ${err.message}`
+            );
+            return;
+          }
+
+          // Parse structured fields
+          const get = (field: string) =>
+            raw.match(new RegExp(`^${field}:\\s*(.+)$`, "m"))?.[1]?.trim() ??
+            "";
+
+          const primaryId = get("NOTE");
+          const annotation = get("ANNOTATION");
+          const reason = get("REASON");
+
+          const resolveNote = (id: string): NoteEntry | null =>
+            storage.getNote(id) ??
+            notes.find(
+              (n) => n.name.toLowerCase() === id.toLowerCase()
+            ) ??
+            null;
+
+          const suggestedNote = resolveNote(primaryId);
+
+          if (!suggestedNote) {
+            vscode.window.showWarningMessage(
+              "Could not determine a suggestion. Try the chat command instead."
+            );
+            return;
+          }
+
+          // Build quick-pick items
+          const items: Array<
+            vscode.QuickPickItem & { noteId?: string; annotation?: string }
+          > = [
+              {
+                label: `$(sparkle) ${suggestedNote.name}`,
+                description: "Suggested",
+                detail: reason || undefined,
+                noteId: suggestedNote.id,
+                annotation,
+              },
+              { label: "", kind: vscode.QuickPickItemKind.Separator },
+              ...notes
+                .filter((n) => n.id !== suggestedNote.id)
+                .map((n) => ({
+                  label: n.name,
+                  description: `${storage.getReferencesForNote(n.id).length} refs`,
+                  noteId: n.id,
+                  annotation,
+                })),
+            ];
+
+          const selected = await vscode.window.showQuickPick(items, {
+            placeHolder: `Add to "${suggestedNote.name}"? (AI annotation: ${annotation})`,
+          });
+
+          if (!selected || !selected.noteId) {
+            return;
+          }
+
+          await storage.addReference(
+            selected.noteId,
+            file,
+            lineNumber,
+            codeSnippet,
+            language,
+            selected.annotation ?? ""
+          );
+
+          notesTreeProvider.refresh();
+          provider.refresh();
+
+          const result = await vscode.window.showInformationMessage(
+            `Reference added to "${notes.find((n) => n.id === selected.noteId)?.name}"!`,
+            "View Note"
+          );
+
+          if (result === "View Note") {
+            const noteEntry = storage.getNote(selected.noteId);
+            if (noteEntry) {
+              context.workspaceState.update("currentNote", noteEntry.filePath);
+              const doc = await vscode.workspace.openTextDocument(
+                noteEntry.filePath
+              );
+              await vscode.window.showTextDocument(doc);
+            }
+          }
+        }
+      );
     }
   );
 }

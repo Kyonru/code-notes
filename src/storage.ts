@@ -162,9 +162,27 @@ export class NotesStorage {
   }
 
   getReferencesForNote(noteId: string): ReferenceEntry[] {
-    return Object.values(this.index.references).filter(
-      (r) => r.noteId === noteId,
-    );
+    return Object.values(this.index.references)
+      .filter((r) => r.noteId === noteId)
+      .sort((a, b) => {
+        if (a.pinned && !b.pinned) { return -1; }
+        if (!a.pinned && b.pinned) { return 1; }
+        return 0;
+      });
+  }
+
+  async togglePinReference(referenceId: string): Promise<boolean> {
+    const ref = this.index.references[referenceId];
+    if (!ref) {
+      return false;
+    }
+    ref.pinned = !ref.pinned;
+    await this.saveIndex();
+    return ref.pinned;
+  }
+
+  isReferencePinned(referenceId: string): boolean {
+    return this.index.references[referenceId]?.pinned ?? false;
   }
 
   getReferencesForFile(filePath: string): ReferenceEntry[] {

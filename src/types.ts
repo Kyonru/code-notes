@@ -15,6 +15,7 @@ export interface ReferenceEntry {
   codeSnippet: string;
   language: string;
   addedAt: string;
+  pinned?: boolean;
 }
 
 export interface NoteIndex {
