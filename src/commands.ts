@@ -1734,3 +1734,99 @@ export function getAutoTagCommand(
     }
   );
 }
+
+export function getAskNotesCommand(storage: NotesStorage) {
+  return vscode.commands.registerCommand(
+    createCommandName("askNotes"),
+    async () => {
+      const question = await vscode.window.showInputBox({
+        prompt: "Ask a question about your notes",
+        placeHolder: "e.g. Which note covers authentication?",
+      });
+
+      if (!question) {
+        return;
+      }
+
+      const notes = storage.getAllNotesIncludingArchived();
+      if (notes.length === 0) {
+        vscode.window.showWarningMessage("No notes available.");
+        return;
+      }
+
+      // Build full context of all notes and references
+      const notesSummary = notes
+        .map((n) => {
+          const refs = storage.getReferencesForNote(n.id);
+          const tags = n.tags?.length ? ` [tags: ${n.tags.join(", ")}]` : "";
+          const archived = n.archived ? " (archived)" : "";
+          const refLines = refs
+            .map((r) => {
+              const baseName = path.basename(r.file);
+              const comment = r.comments?.length
+                ? ` (${r.comments.length} comments)`
+                : "";
+              return `    - ${baseName}:${r.line} (${r.language}) — ${r.annotation || "no annotation"}${comment}`;
+            })
+            .join("\n");
+          return `Note: "${n.name}"${tags}${archived}\n  References (${refs.length}):\n${refLines || "    (none)"}`;
+        })
+        .join("\n\n");
+
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: "Searching notes…",
+          cancellable: true,
+        },
+        async (_progress, cancelToken) => {
+          const models = await vscode.lm.selectChatModels({
+            vendor: "copilot",
+            family: "gpt-4o",
+          });
+
+          if (models.length === 0) {
+            vscode.window.showErrorMessage(
+              "No language model available. Make sure GitHub Copilot is active."
+            );
+            return;
+          }
+
+          const model = models[0];
+
+          const messages = [
+            vscode.LanguageModelChatMessage.User(
+              `You are a helpful assistant that answers questions about a developer's code research notes.\n\n` +
+              `## All Notes\n${notesSummary}\n\n` +
+              `## Question\n${question}\n\n` +
+              `## Instructions\n` +
+              `Answer the question based ONLY on the notes and references above.\n` +
+              `Be concise and specific. Reference note names in quotes.\n` +
+              `If no note matches, say so clearly.`
+            ),
+          ];
+
+          const response = await model.sendRequest(messages, {}, cancelToken);
+
+          let responseText = "";
+          for await (const chunk of response.text) {
+            responseText += chunk;
+          }
+
+          // Show answer in an information message with option to see full response
+          const answer = responseText.trim();
+          if (answer.length <= 200) {
+            vscode.window.showInformationMessage(answer);
+          } else {
+            // Show in a new untitled document for longer answers
+            const doc = await vscode.workspace.openTextDocument({
+              content: `# Question\n\n${question}\n\n# Answer\n\n${answer}`,
+              language: "markdown",
+            });
+            await vscode.window.showTextDocument(doc);
+          }
+        }
+      );
+    }
+  );
+}

@@ -211,6 +211,11 @@
         "command": "crosscodenotes.autoTag",
         "title": "Codebase Notebook: Auto-Tag Note (AI)",
         "icon": "$(sparkle)"
+      },
+      {
+        "command": "crosscodenotes.askNotes",
+        "title": "Codebase Notebook: Ask Notes (AI)",
+        "icon": "$(search)"
       }
     ],
     "menus": {

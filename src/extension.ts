@@ -34,6 +34,7 @@ import {
   getViewCommentsCommand,
   getExportNoteCommand,
   getAutoTagCommand,
+  getAskNotesCommand,
 } from "./commands";
 import { registerChatParticipant } from "./chat";
 import { initCodeLensProvider, NotesCodeLensProvider } from "./codelens";
@@ -188,6 +189,7 @@ export function activate(context: vscode.ExtensionContext) {
     getViewCommentsCommand(storage),
     getExportNoteCommand(context, storage),
     getAutoTagCommand(storage, notesTreeProvider),
+    getAskNotesCommand(storage),
     treeView,
     statusBarItem,
   );
