@@ -4,24 +4,61 @@ on:
       - "*"
 
 name: Deploy Extension
+
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
+    outputs:
+      vsixPath: ${{ steps.package.outputs.vsixPath }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+
       - run: npm ci
+
+      - name: Package Extension
+        id: package
+        run: |
+          npx vsce package
+          echo "vsixPath=$(ls *.vsix)" >> $GITHUB_OUTPUT
+
+      - name: Upload VSIX
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension
+          path: ${{ steps.package.outputs.vsixPath }}
+
+  publish-vs-marketplace:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download VSIX
+        uses: actions/download-artifact@v4
+        with:
+          name: extension
+
       - name: Publish to Visual Studio Marketplace
         uses: HaaLeo/publish-vscode-extension@v2
-        id: publishToVSMarketplace
         with:
           pat: ${{ secrets.VS_MARKETPLACE_TOKEN }}
           registryUrl: https://marketplace.visualstudio.com
+          extensionFile: "*.vsix"
+
+  publish-open-vsx:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download VSIX
+        uses: actions/download-artifact@v4
+        with:
+          name: extension
+
       - name: Publish to Open VSX
         uses: HaaLeo/publish-vscode-extension@v2
         with:
           pat: ${{ secrets.OPEN_VSX_TOKEN }}
           registryUrl: https://open-vsx.org
-          extensionFile: ${{ steps.publishToVSMarketplace.outputs.vsixPath }}
+          extensionFile: "*.vsix"
