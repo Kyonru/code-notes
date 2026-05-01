@@ -201,6 +201,15 @@ export class NotesStorage {
     );
   }
 
+  async updateReferences(refs: ReferenceEntry[]): Promise<void> {
+    for (const ref of refs) {
+      if (this.index.references[ref.id]) {
+        this.index.references[ref.id] = ref;
+      }
+    }
+    await this.saveIndex();
+  }
+
   getAllReferences(): ReferenceEntry[] {
     return Object.values(this.index.references);
   }

@@ -26,6 +26,7 @@ import { initCodeLensProvider, NotesCodeLensProvider } from "./codelens";
 import { initInlineCompletionProvider } from "./inlineCompletion";
 import { NotesStorage } from "./storage";
 import { migrateIfNeeded } from "./migration";
+import { initLineTracker } from "./lineTracker";
 
 export function activate(context: vscode.ExtensionContext) {
   const notesDir = getNotesDir(context);
@@ -121,6 +122,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   registerChatParticipant(context, storage);
   initInlineCompletionProvider(context, storage);
+  initLineTracker(context, storage);
 
   updateStatusBar();
 
