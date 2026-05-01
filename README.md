@@ -30,6 +30,15 @@ Codebase Notebook is a VS Code extension that lets you take structured notes acr
 - Auto-update line numbers when code shifts (file change watcher)
 - Hover preview — see annotation when hovering over referenced lines
 - **Quick Add** — Single-keystroke annotation without leaving the editor (`Cmd+Shift+L`)
+- **Auto Annotate (AI)** — AI generates an annotation based on selected code and note context (`Cmd+Shift+;`)
+- **Annotation History** — Track changes to annotations over time, view full revision history per reference
+- **Broken Reference Detection** — Auto-scan for references to deleted/moved files on startup, with manual command
+
+### 📊 Monitoring & Quality
+
+- **Status Bar Badge** — Shows count of stale/broken annotations with warning indicator
+- **Annotation Timeline** — Chronological webview showing when annotations were added across all notes
+- **Annotation Quality Scoring (AI)** — Rate annotations for staleness/vagueness and suggest rewrites
 
 ### 🔌 AI Provider Flexibility
 
@@ -55,8 +64,13 @@ Additional AI commands (Command Palette):
 | Command                                             | Description                                                |
 | --------------------------------------------------- | ---------------------------------------------------------- |
 | `Codebase Notebook: Suggest Note`                   | AI suggests which note fits the current code (Cmd+Shift+K) |
+| `Codebase Notebook: Auto Annotate (AI)`             | AI generates annotation from code context (Cmd+Shift+;)    |
 | `Codebase Notebook: Auto-Tag Note (AI)`             | Suggest tags for a note based on its references            |
 | `Codebase Notebook: Ask Notes (AI)`                 | Ask questions about your notes ("Which note covers auth?") |
+| `Codebase Notebook: Semantic Search (AI)`           | Natural language search across all annotations             |
+| `Codebase Notebook: Smart Linking (AI)`             | Auto-detect related references and suggest cross-links     |
+| `Codebase Notebook: Annotation Quality Score (AI)`  | Rate staleness/vagueness and suggest rewrites              |
+| `Codebase Notebook: Code Review Assistant (AI)`     | Surface relevant annotations during code review (git diff) |
 | `Codebase Notebook: Refresh Stale Annotations (AI)` | Detect changed code and regenerate annotations             |
 
 ### 🏷️ Organization
@@ -76,6 +90,9 @@ Additional AI commands (Command Palette):
 
 - **Reference graph** — Interactive webview showing how notes connect to files (click to open)
 - **References to this file** — See all notes referencing the current file
+- **Semantic Search (AI)** — Natural language queries across all annotations (sparkle button in tree view)
+- **Smart Linking (AI)** — Auto-detect related references and add cross-link comments
+- **Code Review Assistant (AI)** — Surface relevant annotations for your git changes
 - **CodeLens** — "View Note" lens on referenced lines
 - **Inline completions** — Annotation suggestions as you type
 
@@ -120,6 +137,9 @@ Additional AI commands (Command Palette):
 | `Codebase Notebook: Add Comment`               | Add a comment to a reference                    |
 | `Codebase Notebook: View Comments`             | View/delete comments on a reference             |
 | `Codebase Notebook: Delete Annotation`         | Delete a reference and its section from the note|
+| `Codebase Notebook: Show Annotation Timeline`  | Chronological view of all annotations           |
+| `Codebase Notebook: Detect Broken References`  | Scan for references to deleted/moved files      |
+| `Codebase Notebook: View Annotation History`   | View revision history of a reference            |
 | `Codebase Notebook: Set AI API Key`            | Store API key securely for external AI provider |
 | `Codebase Notebook: Clear AI API Key`          | Remove stored AI API key                        |
 | `Codebase Notebook: Change Notes Directory`    | Select / change the directory used for notes    |
@@ -141,6 +161,7 @@ You'll find most actions in:
 | Add Reference to Notebook | `Ctrl + Shift + J` | `Cmd + Shift + J` |
 | Quick Add Annotation      | `Ctrl + Shift + L` | `Cmd + Shift + L` |
 | Suggest Note (AI)         | `Ctrl + Shift + K` | `Cmd + Shift + K` |
+| Auto Annotate (AI)        | `Ctrl + Shift + ;` | `Cmd + Shift + ;` |
 
 ### Quick Add vs Add Reference
 

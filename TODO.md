@@ -6,11 +6,6 @@
 
 ## AI-Enhanced Features
 
-- [ ] Code change impact analysis (identify affected annotations from git diffs)
-- [ ] Auto-annotation from PR (suggest annotations for notable PR changes)
-- [ ] Knowledge gaps detection (find heavily-modified files with no annotations)
-- [ ] Annotation quality scoring (rate staleness/vagueness, suggest rewrites)
-- [ ] Generate onboarding guide (compile annotations into a structured walkthrough)
 - [ ] Code review assistant (surface relevant annotations during code review)
 - [ ] Dependency chain narrator (trace call chains from an annotated reference)
 - [ ] Note summarization on hover (AI one-liner in tree view tooltip)
