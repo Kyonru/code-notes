@@ -216,6 +216,11 @@
         "command": "crosscodenotes.askNotes",
         "title": "Codebase Notebook: Ask Notes (AI)",
         "icon": "$(search)"
+      },
+      {
+        "command": "crosscodenotes.refreshStaleAnnotations",
+        "title": "Codebase Notebook: Refresh Stale Annotations (AI)",
+        "icon": "$(sync)"
       }
     ],
     "menus": {

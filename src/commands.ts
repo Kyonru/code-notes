@@ -1830,3 +1830,148 @@ export function getAskNotesCommand(storage: NotesStorage) {
     }
   );
 }
+
+export function getRefreshStaleAnnotationsCommand(
+  storage: NotesStorage,
+  notesTreeProvider: NotesTreeProvider,
+  provider: NotesCodeLensProvider
+) {
+  return vscode.commands.registerCommand(
+    createCommandName("refreshStaleAnnotations"),
+    async () => {
+      const allRefs = storage.getAllReferences();
+      const staleRefs: { ref: typeof allRefs[0]; currentCode: string }[] = [];
+
+      for (const ref of allRefs) {
+        if (!ref.codeSnippet || !fs.existsSync(ref.file)) {
+          continue;
+        }
+
+        try {
+          const content = fs.readFileSync(ref.file, "utf-8");
+          const lines = content.split(/\r?\n/);
+          const lineIdx = ref.line - 1;
+
+          if (lineIdx < 0 || lineIdx >= lines.length) {
+            continue;
+          }
+
+          // Get a few lines around the reference for comparison
+          const snippetLines = ref.codeSnippet.split(/\r?\n/).length;
+          const start = Math.max(0, lineIdx);
+          const end = Math.min(lines.length, lineIdx + snippetLines);
+          const currentCode = lines.slice(start, end).join("\n");
+
+          if (currentCode.trim() !== ref.codeSnippet.trim()) {
+            staleRefs.push({ ref, currentCode });
+          }
+        } catch {
+          continue;
+        }
+      }
+
+      if (staleRefs.length === 0) {
+        vscode.window.showInformationMessage(
+          "All annotations are up to date!"
+        );
+        return;
+      }
+
+      const items = staleRefs.map(({ ref }) => {
+        const note = storage.getNote(ref.noteId);
+        const baseName = path.basename(ref.file);
+        return {
+          label: `${baseName}:${ref.line}`,
+          description: note?.name ?? ref.noteId,
+          detail: ref.annotation?.substring(0, 80),
+          picked: true,
+          ref,
+        };
+      });
+
+      const selected = await vscode.window.showQuickPick(items, {
+        placeHolder: `${staleRefs.length} stale annotation(s) found — select to refresh`,
+        canPickMany: true,
+      });
+
+      if (!selected || selected.length === 0) {
+        return;
+      }
+
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `Refreshing ${selected.length} annotation(s)…`,
+          cancellable: true,
+        },
+        async (_progress, cancelToken) => {
+          const models = await vscode.lm.selectChatModels({
+            vendor: "copilot",
+            family: "gpt-4o",
+          });
+
+          if (models.length === 0) {
+            vscode.window.showErrorMessage(
+              "No language model available. Make sure GitHub Copilot is active."
+            );
+            return;
+          }
+
+          const model = models[0];
+          let refreshed = 0;
+
+          for (const item of selected) {
+            if (cancelToken.isCancellationRequested) {
+              break;
+            }
+
+            const ref = item.ref;
+            const stale = staleRefs.find((s) => s.ref.id === ref.id);
+            if (!stale) {
+              continue;
+            }
+
+            const baseName = path.basename(ref.file);
+            const messages = [
+              vscode.LanguageModelChatMessage.User(
+                `You are helping a developer update a code annotation.\n\n` +
+                `## Original code\n\`\`\`${ref.language}\n${ref.codeSnippet}\n\`\`\`\n\n` +
+                `## Original annotation\n${ref.annotation}\n\n` +
+                `## Updated code (current)\n\`\`\`${ref.language}\n${stale.currentCode}\n\`\`\`\n\n` +
+                `## Instructions\n` +
+                `The code at ${baseName}:${ref.line} has changed. ` +
+                `Write a new 1-2 sentence annotation that accurately describes the UPDATED code. ` +
+                `Keep the same style and level of detail as the original annotation. ` +
+                `Respond with ONLY the new annotation text, no preamble.`
+              ),
+            ];
+
+            try {
+              const response = await model.sendRequest(messages, {}, cancelToken);
+              let newAnnotation = "";
+              for await (const chunk of response.text) {
+                newAnnotation += chunk;
+              }
+
+              newAnnotation = newAnnotation.trim();
+              if (newAnnotation) {
+                ref.annotation = newAnnotation;
+                ref.codeSnippet = stale.currentCode;
+                await storage.updateReferences([ref]);
+                refreshed++;
+              }
+            } catch {
+              // Skip this one on error
+            }
+          }
+
+          notesTreeProvider.refresh();
+          provider.refresh();
+          vscode.window.showInformationMessage(
+            `Refreshed ${refreshed} annotation(s).`
+          );
+        }
+      );
+    }
+  );
+}
