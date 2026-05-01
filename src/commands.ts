@@ -1432,3 +1432,69 @@ export function getToggleWorkspaceStorageCommand(
     }
   );
 }
+
+export function getAddCommentCommand(
+  storage: NotesStorage,
+  notesTreeProvider: NotesTreeProvider
+) {
+  return vscode.commands.registerCommand(
+    createCommandName("addComment"),
+    async (item: NoteItem) => {
+      if (!item.referenceId) {
+        return;
+      }
+
+      const text = await vscode.window.showInputBox({
+        prompt: "Enter your comment",
+        placeHolder: "Add a comment to this reference...",
+      });
+
+      if (!text) {
+        return;
+      }
+
+      await storage.addComment(item.referenceId, text);
+      notesTreeProvider.refresh();
+      vscode.window.showInformationMessage("Comment added.");
+    }
+  );
+}
+
+export function getViewCommentsCommand(storage: NotesStorage) {
+  return vscode.commands.registerCommand(
+    createCommandName("viewComments"),
+    async (item: NoteItem) => {
+      if (!item.referenceId) {
+        return;
+      }
+
+      const comments = storage.getComments(item.referenceId);
+
+      if (comments.length === 0) {
+        vscode.window.showInformationMessage("No comments on this reference.");
+        return;
+      }
+
+      const items = comments.map((c) => ({
+        label: c.text,
+        description: new Date(c.createdAt).toLocaleString(),
+        commentId: c.id,
+      }));
+
+      const picked = await vscode.window.showQuickPick(items, {
+        placeHolder: `${comments.length} comment(s) — select to delete`,
+      });
+
+      if (picked) {
+        const action = await vscode.window.showQuickPick(
+          ["Delete this comment", "Cancel"],
+          { placeHolder: `"${picked.label}"` }
+        );
+        if (action === "Delete this comment") {
+          await storage.deleteComment(item.referenceId, picked.commentId);
+          vscode.window.showInformationMessage("Comment deleted.");
+        }
+      }
+    }
+  );
+}

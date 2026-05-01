@@ -191,6 +191,16 @@
         "command": "crosscodenotes.toggleWorkspaceStorage",
         "title": "Codebase Notebook: Toggle Workspace Storage (.codenotes/)",
         "icon": "$(repo)"
+      },
+      {
+        "command": "crosscodenotes.addComment",
+        "title": "Codebase Notebook: Add Comment",
+        "icon": "$(comment)"
+      },
+      {
+        "command": "crosscodenotes.viewComments",
+        "title": "Codebase Notebook: View Comments",
+        "icon": "$(comment-discussion)"
       }
     ],
     "menus": {
@@ -266,6 +276,46 @@
         {
           "command": "crosscodenotes.togglePinReference",
           "when": "view == codeNotesView && viewItem == reference-pinned",
+          "group": "inline"
+        },
+        {
+          "command": "crosscodenotes.togglePinReference",
+          "when": "view == codeNotesView && viewItem == reference-commented",
+          "group": "inline"
+        },
+        {
+          "command": "crosscodenotes.togglePinReference",
+          "when": "view == codeNotesView && viewItem == reference-pinned-commented",
+          "group": "inline"
+        },
+        {
+          "command": "crosscodenotes.addComment",
+          "when": "view == codeNotesView && viewItem == reference",
+          "group": "inline"
+        },
+        {
+          "command": "crosscodenotes.addComment",
+          "when": "view == codeNotesView && viewItem == reference-pinned",
+          "group": "inline"
+        },
+        {
+          "command": "crosscodenotes.addComment",
+          "when": "view == codeNotesView && viewItem == reference-commented",
+          "group": "inline"
+        },
+        {
+          "command": "crosscodenotes.addComment",
+          "when": "view == codeNotesView && viewItem == reference-pinned-commented",
+          "group": "inline"
+        },
+        {
+          "command": "crosscodenotes.viewComments",
+          "when": "view == codeNotesView && viewItem == reference-commented",
+          "group": "inline"
+        },
+        {
+          "command": "crosscodenotes.viewComments",
+          "when": "view == codeNotesView && viewItem == reference-pinned-commented",
           "group": "inline"
         }
       ],

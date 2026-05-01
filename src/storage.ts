@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { CURRENT_SCHEMA_VERSION, INDEX_FILE_NAME } from "./constants";
-import { NoteEntry, NoteIndex, ReferenceEntry } from "./types";
+import { NoteEntry, NoteIndex, ReferenceComment, ReferenceEntry } from "./types";
 
 function slugify(name: string): string {
   return name.replace(/[^a-z0-9-_]/gi, "-").toLowerCase();
@@ -311,6 +311,38 @@ export class NotesStorage {
 
   getAllReferences(): ReferenceEntry[] {
     return Object.values(this.index.references);
+  }
+
+  // --- Comments / Threads ---
+
+  async addComment(referenceId: string, text: string): Promise<ReferenceComment | undefined> {
+    const ref = this.index.references[referenceId];
+    if (!ref) { return undefined; }
+
+    const comment: ReferenceComment = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      text,
+      createdAt: new Date().toISOString(),
+    };
+
+    if (!ref.comments) {
+      ref.comments = [];
+    }
+    ref.comments.push(comment);
+    await this.saveIndex();
+    return comment;
+  }
+
+  async deleteComment(referenceId: string, commentId: string): Promise<void> {
+    const ref = this.index.references[referenceId];
+    if (!ref || !ref.comments) { return; }
+
+    ref.comments = ref.comments.filter((c) => c.id !== commentId);
+    await this.saveIndex();
+  }
+
+  getComments(referenceId: string): ReferenceComment[] {
+    return this.index.references[referenceId]?.comments ?? [];
   }
 
   getNotesDirectory(): string {

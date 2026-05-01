@@ -30,6 +30,8 @@ import {
   getChangeNotesDirectoryCommand,
   getReferencesToThisFileCommand,
   getToggleWorkspaceStorageCommand,
+  getAddCommentCommand,
+  getViewCommentsCommand,
 } from "./commands";
 import { registerChatParticipant } from "./chat";
 import { initCodeLensProvider, NotesCodeLensProvider } from "./codelens";
@@ -180,6 +182,8 @@ export function activate(context: vscode.ExtensionContext) {
     getShowReferenceGraphCommand(storage),
     getReferencesToThisFileCommand(storage),
     getToggleWorkspaceStorageCommand(context, storage, notesTreeProvider, provider),
+    getAddCommentCommand(storage, notesTreeProvider),
+    getViewCommentsCommand(storage),
     treeView,
     statusBarItem,
   );

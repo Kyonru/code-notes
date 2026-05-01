@@ -106,7 +106,11 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteItem> {
 
       if (ref.pinned) {
         item.iconPath = new vscode.ThemeIcon("pin");
-        item.contextValue = "reference-pinned";
+        item.contextValue = ref.comments && ref.comments.length > 0
+          ? "reference-pinned-commented"
+          : "reference-pinned";
+      } else if (ref.comments && ref.comments.length > 0) {
+        item.contextValue = "reference-commented";
       }
 
       item.tooltip = ref.annotation || ref.file;

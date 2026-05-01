@@ -19,6 +19,13 @@ export interface ReferenceEntry {
   addedAt: string;
   pinned?: boolean;
   sortOrder?: number;
+  comments?: ReferenceComment[];
+}
+
+export interface ReferenceComment {
+  id: string;
+  text: string;
+  createdAt: string;
 }
 
 export interface NoteIndex {
