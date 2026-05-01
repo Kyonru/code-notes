@@ -277,6 +277,11 @@
         "command": "crosscodenotes.showTimeline",
         "title": "Codebase Notebook: Show Annotation Timeline",
         "icon": "$(history)"
+      },
+      {
+        "command": "crosscodenotes.detectBrokenReferences",
+        "title": "Codebase Notebook: Detect Broken References",
+        "icon": "$(warning)"
       }
     ],
     "menus": {

@@ -40,6 +40,8 @@ import {
   getSetAiApiKeyCommand,
   getClearAiApiKeyCommand,
   getQuickAddCommand,
+  getDetectBrokenReferencesCommand,
+  detectBrokenReferences,
 } from "./commands";
 import { registerChatParticipant } from "./chat";
 import { initCodeLensProvider, NotesCodeLensProvider } from "./codelens";
@@ -65,6 +67,8 @@ export function activate(context: vscode.ExtensionContext) {
     .then(() => storage.initialize())
     .then(() => {
       vscode.commands.executeCommand(createCommandName("refreshTree"));
+      // Scan for broken references silently on workspace open
+      detectBrokenReferences(storage, notesTreeProvider, provider, true);
     });
 
   const provider = new NotesCodeLensProvider(storage);
@@ -205,6 +209,7 @@ export function activate(context: vscode.ExtensionContext) {
     getSetAiApiKeyCommand(),
     getClearAiApiKeyCommand(),
     getQuickAddCommand(context, storage, notesTreeProvider, provider),
+    getDetectBrokenReferencesCommand(storage, notesTreeProvider, provider),
     treeView,
     statusBarItem,
   );

@@ -19,14 +19,10 @@
 
 ## Non-AI Features
 
-- [ ] Broken reference detection (scan for deleted/moved files on workspace open)
 - [ ] Annotation heat map (editor decoration showing annotation density)
 - [ ] Note versioning/history (track annotation changes over time)
 - [ ] Workspace-wide search panel (dedicated webview with filters)
 - [ ] Multi-root workspace support (per-folder scoping with cross-links)
-- [ ] Export to Notion/Obsidian (compatible export formats)
-- [ ] Keyboard-driven quick-add (inline annotation input without leaving editor)
-- [ ] Reference timeline view (chronological webview of annotations)
 - [ ] Note templates library (shareable template packs)
 - [ ] Badge/status bar indicators (stale annotation count in status bar)
 - [ ] Collaborative notes (shared sync via git-based merge)

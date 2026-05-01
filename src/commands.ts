@@ -2105,3 +2105,82 @@ export function getQuickAddCommand(
     }
   );
 }
+
+export function getDetectBrokenReferencesCommand(
+  storage: NotesStorage,
+  notesTreeProvider: NotesTreeProvider,
+  codeLensProvider: NotesCodeLensProvider
+) {
+  return vscode.commands.registerCommand(
+    createCommandName("detectBrokenReferences"),
+    async () => {
+      await detectBrokenReferences(storage, notesTreeProvider, codeLensProvider, false);
+    }
+  );
+}
+
+export async function detectBrokenReferences(
+  storage: NotesStorage,
+  notesTreeProvider: NotesTreeProvider,
+  codeLensProvider: NotesCodeLensProvider,
+  silent: boolean
+): Promise<void> {
+  const allRefs = storage.getAllReferences();
+  const broken = allRefs.filter((ref) => !fs.existsSync(ref.file));
+
+  if (broken.length === 0) {
+    if (!silent) {
+      vscode.window.showInformationMessage("All references are valid.");
+    }
+    return;
+  }
+
+  const noteMap = new Map(
+    storage.getAllNotesIncludingArchived().map((n) => [n.id, n.name])
+  );
+
+  const action = await vscode.window.showWarningMessage(
+    `Found ${broken.length} broken reference${broken.length > 1 ? "s" : ""} (files moved or deleted).`,
+    "Review & Fix",
+    "Remove All",
+    "Dismiss"
+  );
+
+  if (action === "Remove All") {
+    for (const ref of broken) {
+      await storage.deleteReference(ref.id);
+    }
+    notesTreeProvider.refresh();
+    codeLensProvider.refresh();
+    vscode.window.showInformationMessage(
+      `Removed ${broken.length} broken reference${broken.length > 1 ? "s" : ""}.`
+    );
+  } else if (action === "Review & Fix") {
+    // Show each broken reference and let user decide
+    const items = broken.map((ref) => ({
+      label: `$(warning) ${path.basename(ref.file)}:${ref.line}`,
+      description: noteMap.get(ref.noteId) || ref.noteId,
+      detail: ref.annotation || ref.file,
+      ref,
+    }));
+
+    const selected = await vscode.window.showQuickPick(items, {
+      placeHolder: "Select broken references to remove",
+      canPickMany: true,
+    });
+
+    if (!selected || selected.length === 0) {
+      return;
+    }
+
+    for (const item of selected) {
+      await storage.deleteReference(item.ref.id);
+    }
+
+    notesTreeProvider.refresh();
+    codeLensProvider.refresh();
+    vscode.window.showInformationMessage(
+      `Removed ${selected.length} broken reference${selected.length > 1 ? "s" : ""}.`
+    );
+  }
+}
