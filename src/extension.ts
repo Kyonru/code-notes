@@ -32,6 +32,7 @@ import {
   getToggleWorkspaceStorageCommand,
   getAddCommentCommand,
   getViewCommentsCommand,
+  getExportNoteCommand,
 } from "./commands";
 import { registerChatParticipant } from "./chat";
 import { initCodeLensProvider, NotesCodeLensProvider } from "./codelens";
@@ -184,6 +185,7 @@ export function activate(context: vscode.ExtensionContext) {
     getToggleWorkspaceStorageCommand(context, storage, notesTreeProvider, provider),
     getAddCommentCommand(storage, notesTreeProvider),
     getViewCommentsCommand(storage),
+    getExportNoteCommand(context, storage),
     treeView,
     statusBarItem,
   );

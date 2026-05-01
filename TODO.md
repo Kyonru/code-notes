@@ -15,7 +15,7 @@
 
 ## Export & Sharing
 
-- [ ] **Export to markdown/PDF** — Generate a standalone document from a note with embedded code snippets and file links
+- [x] **Export to markdown/PDF** — Generate a standalone document from a note with embedded code snippets and file links
 - [ ] **Share via gist** — Publish a note as a GitHub Gist for sharing with teammates
 - [x] **Import from clipboard** — Paste a markdown snippet and auto-detect file references in it
 

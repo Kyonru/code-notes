@@ -201,6 +201,11 @@
         "command": "crosscodenotes.viewComments",
         "title": "Codebase Notebook: View Comments",
         "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "crosscodenotes.exportNote",
+        "title": "Codebase Notebook: Export Note",
+        "icon": "$(export)"
       }
     ],
     "menus": {

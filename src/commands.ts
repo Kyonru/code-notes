@@ -1498,3 +1498,110 @@ export function getViewCommentsCommand(storage: NotesStorage) {
     }
   );
 }
+
+export function getExportNoteCommand(
+  context: vscode.ExtensionContext,
+  storage: NotesStorage
+) {
+  return vscode.commands.registerCommand(
+    createCommandName("exportNote"),
+    async () => {
+      const notes = storage.getNotes();
+      if (notes.length === 0) {
+        vscode.window.showWarningMessage("No notes to export.");
+        return;
+      }
+
+      const items = notes.map((n) => ({ label: n.name, noteId: n.id }));
+      const picked = await vscode.window.showQuickPick(items, {
+        placeHolder: "Select a note to export",
+      });
+      if (!picked) {
+        return;
+      }
+
+      const note = storage.getNote(picked.noteId);
+      if (!note) {
+        return;
+      }
+
+      const refs = storage.getReferencesForNote(note.id);
+
+      // Build markdown content
+      let md = `# ${note.name}\n\n`;
+      md += `> Exported from Codebase Notebook on ${new Date().toLocaleDateString()}\n\n`;
+
+      if (note.tags && note.tags.length > 0) {
+        md += `**Tags:** ${note.tags.map((t) => `\`#${t}\``).join(" ")}\n\n`;
+      }
+
+      md += `---\n\n`;
+
+      if (refs.length === 0) {
+        md += `_No references._\n`;
+      } else {
+        for (const ref of refs) {
+          const baseName = path.basename(ref.file);
+          md += `## ${baseName}:${ref.line}\n\n`;
+          md += `**File:** \`${ref.file}\`  \n`;
+          md += `**Line:** ${ref.line}\n\n`;
+
+          if (ref.annotation) {
+            md += `${ref.annotation}\n\n`;
+          }
+
+          if (ref.codeSnippet) {
+            md += `\`\`\`${ref.language || ""}\n${ref.codeSnippet}\n\`\`\`\n\n`;
+          }
+
+          if (ref.comments && ref.comments.length > 0) {
+            md += `### Comments\n\n`;
+            for (const c of ref.comments) {
+              md += `- **${new Date(c.createdAt).toLocaleString()}:** ${c.text}\n`;
+            }
+            md += `\n`;
+          }
+
+          md += `---\n\n`;
+        }
+      }
+
+      // Ask where to save
+      const format = await vscode.window.showQuickPick(
+        [
+          { label: "$(markdown) Save as Markdown (.md)", value: "md" },
+          { label: "$(file) Copy to Clipboard", value: "clipboard" },
+        ],
+        { placeHolder: "Export format" }
+      );
+
+      if (!format) {
+        return;
+      }
+
+      if (format.value === "clipboard") {
+        await vscode.env.clipboard.writeText(md);
+        vscode.window.showInformationMessage("Note exported to clipboard.");
+      } else {
+        const uri = await vscode.window.showSaveDialog({
+          defaultUri: vscode.Uri.file(
+            path.join(
+              vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || "",
+              `${note.name.replace(/[^a-zA-Z0-9-_ ]/g, "")}.md`
+            )
+          ),
+          filters: { Markdown: ["md"] },
+        });
+
+        if (uri) {
+          fs.writeFileSync(uri.fsPath, md, "utf-8");
+          const doc = await vscode.workspace.openTextDocument(uri);
+          await vscode.window.showTextDocument(doc);
+          vscode.window.showInformationMessage(
+            `Note exported to ${path.basename(uri.fsPath)}`
+          );
+        }
+      }
+    }
+  );
+}
