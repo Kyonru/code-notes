@@ -130,6 +130,21 @@
         "command": "crosscodenotes.bulkAddReferences",
         "title": "Codebase Notebook: Bulk Add References",
         "icon": "$(files)"
+      },
+      {
+        "command": "crosscodenotes.addTag",
+        "title": "Codebase Notebook: Add Tag",
+        "icon": "$(tag)"
+      },
+      {
+        "command": "crosscodenotes.removeTag",
+        "title": "Codebase Notebook: Remove Tag",
+        "icon": "$(close)"
+      },
+      {
+        "command": "crosscodenotes.filterByTag",
+        "title": "Codebase Notebook: Filter by Tag",
+        "icon": "$(filter)"
       }
     ],
     "menus": {
@@ -157,11 +172,22 @@
           "title": "Search Notes",
           "when": "view == codeNotesView",
           "group": "navigation"
+        },
+        {
+          "command": "crosscodenotes.filterByTag",
+          "title": "Filter by Tag",
+          "when": "view == codeNotesView",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
         {
           "command": "crosscodenotes.openNoteFromTree",
+          "when": "view == codeNotesView && viewItem == note",
+          "group": "inline"
+        },
+        {
+          "command": "crosscodenotes.addTag",
           "when": "view == codeNotesView && viewItem == note",
           "group": "inline"
         },

@@ -9,7 +9,7 @@
 
 ## Organization
 
-- [ ] **Tags/labels on notes** — Add tags like `#auth`, `#perf`, `#bug` for cross-cutting categorization and filtering
+- [x] **Tags/labels on notes** — Add tags like `#auth`, `#perf`, `#bug` for cross-cutting categorization and filtering
 - [ ] **Archive notes** — Hide completed research notes without deleting them
 - [ ] **Note templates** — Predefined templates (e.g., "Bug Investigation", "Code Review", "Feature Exploration") with starter headings
 

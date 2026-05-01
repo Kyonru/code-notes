@@ -6,13 +6,16 @@ import { NotesTreeProvider, NotesTreeDragAndDropController } from "./treeView";
 import {
   gerRefreshTreeCommand,
   getAddReferenceCommand,
+  getAddTagCommand,
   getApplyAnnotatedReferenceCommand,
   getBulkAddReferencesCommand,
   getCreateNoteCommand,
   getDeleteNoteCommand,
+  getFilterByTagCommand,
   getGoToReferenceCommand,
   getOpenNoteFromTreeCommand,
   getOpenNotesDirCommand,
+  getRemoveTagCommand,
   getSelectNoteCommand,
   getSuggestNoteCommand,
   getTogglePinReferenceCommand,
@@ -119,6 +122,9 @@ export function activate(context: vscode.ExtensionContext) {
     notesTreeProvider,
     provider,
   );
+  const addTag = getAddTagCommand(storage, notesTreeProvider);
+  const removeTag = getRemoveTagCommand(storage, notesTreeProvider);
+  const filterByTag = getFilterByTagCommand(context, storage, notesTreeProvider);
 
   registerChatParticipant(context, storage);
   initInlineCompletionProvider(context, storage);
@@ -143,6 +149,9 @@ export function activate(context: vscode.ExtensionContext) {
     suggestNote,
     togglePinReference,
     bulkAddReferences,
+    addTag,
+    removeTag,
+    filterByTag,
     treeView,
     statusBarItem,
   );

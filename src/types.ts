@@ -4,6 +4,7 @@ export interface NoteEntry {
   filePath: string;
   createdAt: string;
   updatedAt: string;
+  tags?: string[];
 }
 
 export interface ReferenceEntry {

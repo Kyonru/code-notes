@@ -541,6 +541,153 @@ export function getChangeNotesDirectoryCommand(
   );
 }
 
+export function getAddTagCommand(
+  storage: NotesStorage,
+  notesTreeProvider: NotesTreeProvider
+) {
+  return vscode.commands.registerCommand(
+    createCommandName("addTag"),
+    async (item?: NoteItem) => {
+      let noteId: string | undefined;
+
+      if (item?.filePath) {
+        noteId = path.basename(item.filePath, ".md");
+      } else {
+        // Pick a note
+        const notes = storage.getNotes();
+        if (notes.length === 0) {
+          vscode.window.showInformationMessage("No notes found.");
+          return;
+        }
+        const selected = await vscode.window.showQuickPick(
+          notes.map((n) => ({
+            label: n.name,
+            noteId: n.id,
+          })),
+          { placeHolder: "Select a note to tag" }
+        );
+        if (!selected) { return; }
+        noteId = selected.noteId;
+      }
+
+      const existingTags = storage.getAllTags();
+      const input = await vscode.window.showInputBox({
+        prompt: "Enter tag (without #)",
+        placeHolder: existingTags.length > 0
+          ? `Existing: ${existingTags.join(", ")}`
+          : "e.g. auth, perf, bug",
+      });
+
+      if (!input || !input.trim()) { return; }
+
+      // Support comma-separated tags
+      const tags = input.split(",").map((t) => t.trim()).filter(Boolean);
+      for (const tag of tags) {
+        await storage.addTag(noteId!, tag);
+      }
+
+      notesTreeProvider.refresh();
+      vscode.window.showInformationMessage(
+        `Tag${tags.length > 1 ? "s" : ""} added: ${tags.map((t) => `#${t}`).join(", ")}`
+      );
+    }
+  );
+}
+
+export function getRemoveTagCommand(
+  storage: NotesStorage,
+  notesTreeProvider: NotesTreeProvider
+) {
+  return vscode.commands.registerCommand(
+    createCommandName("removeTag"),
+    async (item?: NoteItem) => {
+      let noteId: string | undefined;
+
+      if (item?.filePath) {
+        noteId = path.basename(item.filePath, ".md");
+      } else {
+        const notes = storage.getNotes().filter((n) => n.tags && n.tags.length > 0);
+        if (notes.length === 0) {
+          vscode.window.showInformationMessage("No tagged notes found.");
+          return;
+        }
+        const selected = await vscode.window.showQuickPick(
+          notes.map((n) => ({
+            label: n.name,
+            description: (n.tags ?? []).map((t) => `#${t}`).join(" "),
+            noteId: n.id,
+          })),
+          { placeHolder: "Select a note to remove tag from" }
+        );
+        if (!selected) { return; }
+        noteId = selected.noteId;
+      }
+
+      const note = storage.getNote(noteId!);
+      if (!note || !note.tags || note.tags.length === 0) {
+        vscode.window.showInformationMessage("This note has no tags.");
+        return;
+      }
+
+      const selected = await vscode.window.showQuickPick(
+        note.tags.map((t) => ({ label: `#${t}`, tag: t })),
+        { placeHolder: "Select tag to remove", canPickMany: true }
+      );
+
+      if (!selected || selected.length === 0) { return; }
+
+      for (const item of selected) {
+        await storage.removeTag(noteId!, item.tag);
+      }
+
+      notesTreeProvider.refresh();
+      vscode.window.showInformationMessage("Tag(s) removed.");
+    }
+  );
+}
+
+export function getFilterByTagCommand(
+  context: vscode.ExtensionContext,
+  storage: NotesStorage,
+  notesTreeProvider: NotesTreeProvider
+) {
+  return vscode.commands.registerCommand(
+    createCommandName("filterByTag"),
+    async () => {
+      const allTags = storage.getAllTags();
+
+      if (allTags.length === 0) {
+        vscode.window.showInformationMessage("No tags found. Add tags to notes first.");
+        return;
+      }
+
+      const items = [
+        { label: "$(close) Clear filter", tag: "" },
+        ...allTags.map((t) => ({
+          label: `#${t}`,
+          description: `${storage.getNotesByTag(t).length} note(s)`,
+          tag: t,
+        })),
+      ];
+
+      const selected = await vscode.window.showQuickPick(items, {
+        placeHolder: "Filter notes by tag",
+      });
+
+      if (!selected) { return; }
+
+      context.workspaceState.update("tagFilter", selected.tag || undefined);
+      notesTreeProvider.refresh();
+
+      if (selected.tag) {
+        vscode.window.showInformationMessage(`Filtering by #${selected.tag}`);
+      } else {
+        vscode.window.showInformationMessage("Tag filter cleared.");
+      }
+    }
+  );
+}
+
 export function getBulkAddReferencesCommand(
   context: vscode.ExtensionContext,
   storage: NotesStorage,

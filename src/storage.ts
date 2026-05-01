@@ -99,6 +99,53 @@ export class NotesStorage {
     return noteId in this.index.notes;
   }
 
+  // --- Tags ---
+
+  async addTag(noteId: string, tag: string): Promise<void> {
+    const note = this.index.notes[noteId];
+    if (!note) { return; }
+    if (!note.tags) { note.tags = []; }
+    const normalized = tag.toLowerCase().replace(/^#/, "").trim();
+    if (!normalized || note.tags.includes(normalized)) { return; }
+    note.tags.push(normalized);
+    note.updatedAt = new Date().toISOString();
+    await this.saveIndex();
+  }
+
+  async removeTag(noteId: string, tag: string): Promise<void> {
+    const note = this.index.notes[noteId];
+    if (!note || !note.tags) { return; }
+    const normalized = tag.toLowerCase().replace(/^#/, "").trim();
+    note.tags = note.tags.filter((t) => t !== normalized);
+    note.updatedAt = new Date().toISOString();
+    await this.saveIndex();
+  }
+
+  async setTags(noteId: string, tags: string[]): Promise<void> {
+    const note = this.index.notes[noteId];
+    if (!note) { return; }
+    note.tags = tags.map((t) => t.toLowerCase().replace(/^#/, "").trim()).filter(Boolean);
+    note.updatedAt = new Date().toISOString();
+    await this.saveIndex();
+  }
+
+  getAllTags(): string[] {
+    const tagSet = new Set<string>();
+    for (const note of Object.values(this.index.notes)) {
+      for (const tag of note.tags ?? []) {
+        tagSet.add(tag);
+      }
+    }
+    return [...tagSet].sort();
+  }
+
+  getNotesByTag(tag: string): NoteEntry[] {
+    const normalized = tag.toLowerCase().replace(/^#/, "").trim();
+    return Object.values(this.index.notes)
+      .filter((n) => n.tags?.includes(normalized))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
   // --- References ---
 
   async addReference(
@@ -203,8 +250,32 @@ export class NotesStorage {
 
   async updateReferences(refs: ReferenceEntry[]): Promise<void> {
     for (const ref of refs) {
-      if (this.index.references[ref.id]) {
-        this.index.references[ref.id] = ref;
+      const oldId = ref.id;
+      const newId = `${ref.noteId}:${ref.file}:${ref.line}`;
+
+      // Re-key if the ID changed (line number moved)
+      if (oldId !== newId) {
+        delete this.index.references[oldId];
+        ref.id = newId;
+        this.index.references[newId] = ref;
+
+        // Update the markdown note file
+        const note = this.index.notes[ref.noteId];
+        if (note && fs.existsSync(note.filePath)) {
+          const baseName = path.basename(ref.file);
+          const oldLine = oldId.split(":").pop();
+          const oldHeading = `## ${baseName}:${oldLine}`;
+          const newHeading = `## ${baseName}:${ref.line}`;
+          const oldLineField = `**Line:** ${oldLine}`;
+          const newLineField = `**Line:** ${ref.line}`;
+
+          let content = fs.readFileSync(note.filePath, "utf-8");
+          content = content.replace(oldHeading, newHeading);
+          content = content.replace(oldLineField, newLineField);
+          fs.writeFileSync(note.filePath, content, "utf-8");
+        }
+      } else if (this.index.references[oldId]) {
+        this.index.references[oldId] = ref;
       }
     }
     await this.saveIndex();
