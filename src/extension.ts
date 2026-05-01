@@ -2,7 +2,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import { createCommandName, getNotesDir } from "./utils";
-import { NotesTreeProvider } from "./treeView";
+import { NotesTreeProvider, NotesTreeDragAndDropController } from "./treeView";
 import {
   gerRefreshTreeCommand,
   getAddReferenceCommand,
@@ -43,8 +43,13 @@ export function activate(context: vscode.ExtensionContext) {
   initCodeLensProvider(context, provider);
 
   const notesTreeProvider = new NotesTreeProvider(context, storage);
+  const dragAndDropController = new NotesTreeDragAndDropController(
+    storage,
+    notesTreeProvider,
+  );
   const treeView = vscode.window.createTreeView("codeNotesView", {
     treeDataProvider: notesTreeProvider,
+    dragAndDropController,
   });
 
   const statusBarItem = vscode.window.createStatusBarItem(

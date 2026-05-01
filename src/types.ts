@@ -16,6 +16,7 @@ export interface ReferenceEntry {
   language: string;
   addedAt: string;
   pinned?: boolean;
+  sortOrder?: number;
 }
 
 export interface NoteIndex {

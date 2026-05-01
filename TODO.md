@@ -3,7 +3,7 @@
 ## Reference Management
 
 - [x] **Pin/favorite references** — Mark key references within a note so they surface first in the tree view
-- [ ] **Drag-and-drop reorder** — Let users reorder references within a note via the tree view
+- [x] **Drag-and-drop reorder** — Let users reorder references within a note via the tree view
 - [ ] **Bulk add references** — Select multiple ranges or files and add them all to a note at once
 - [ ] **Auto-update line numbers** — Watch for file changes and adjust reference line numbers when code shifts
 

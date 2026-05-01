@@ -3,6 +3,8 @@ import * as path from "path";
 import { createCommandName } from "./utils";
 import { NotesStorage } from "./storage";
 
+const MIME_TYPE = "application/vnd.code.tree.codenotesview";
+
 export class NoteItem extends vscode.TreeItem {
   constructor(
     public readonly label: string,
@@ -107,5 +109,83 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteItem> {
 
       return item;
     });
+  }
+}
+
+export class NotesTreeDragAndDropController
+  implements vscode.TreeDragAndDropController<NoteItem> {
+  readonly dropMimeTypes = [MIME_TYPE];
+  readonly dragMimeTypes = [MIME_TYPE];
+
+  constructor(
+    private readonly storage: NotesStorage,
+    private readonly treeProvider: NotesTreeProvider
+  ) { }
+
+  handleDrag(
+    source: readonly NoteItem[],
+    dataTransfer: vscode.DataTransfer,
+    _token: vscode.CancellationToken
+  ): void {
+    const item = source[0];
+    if (item?.type === "reference" && item.referenceId) {
+      dataTransfer.set(
+        MIME_TYPE,
+        new vscode.DataTransferItem(item.referenceId)
+      );
+    }
+  }
+
+  async handleDrop(
+    target: NoteItem | undefined,
+    dataTransfer: vscode.DataTransfer,
+    _token: vscode.CancellationToken
+  ): Promise<void> {
+    const draggedRefId = dataTransfer.get(MIME_TYPE)?.value as
+      | string
+      | undefined;
+    if (!draggedRefId || !target) {
+      return;
+    }
+
+    // Determine the note we're reordering within
+    let noteId: string | undefined;
+    if (target.type === "note") {
+      // Dropped on a note — move to end of that note
+      noteId = path.basename(target.filePath ?? "", ".md");
+    } else if (target.type === "reference") {
+      // Dropped on a reference — reorder within the same note
+      noteId = path.basename(target.filePath ?? "", ".md");
+    }
+
+    if (!noteId) {
+      return;
+    }
+
+    const refs = this.storage.getReferencesForNote(noteId);
+    const orderedIds = refs.map((r) => r.id);
+
+    // Remove the dragged item from its current position
+    const fromIdx = orderedIds.indexOf(draggedRefId);
+    if (fromIdx === -1) {
+      return;
+    }
+    orderedIds.splice(fromIdx, 1);
+
+    // Insert at the target position
+    if (target.type === "reference" && target.referenceId) {
+      const toIdx = orderedIds.indexOf(target.referenceId);
+      if (toIdx !== -1) {
+        orderedIds.splice(toIdx, 0, draggedRefId);
+      } else {
+        orderedIds.push(draggedRefId);
+      }
+    } else {
+      // Dropped on the note itself — append at end
+      orderedIds.push(draggedRefId);
+    }
+
+    await this.storage.reorderReferences(noteId, orderedIds);
+    this.treeProvider.refresh();
   }
 }

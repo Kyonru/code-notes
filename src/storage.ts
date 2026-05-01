@@ -167,8 +167,18 @@ export class NotesStorage {
       .sort((a, b) => {
         if (a.pinned && !b.pinned) { return -1; }
         if (!a.pinned && b.pinned) { return 1; }
-        return 0;
+        return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
       });
+  }
+
+  async reorderReferences(noteId: string, orderedIds: string[]): Promise<void> {
+    for (let i = 0; i < orderedIds.length; i++) {
+      const ref = this.index.references[orderedIds[i]];
+      if (ref && ref.noteId === noteId) {
+        ref.sortOrder = i;
+      }
+    }
+    await this.saveIndex();
   }
 
   async togglePinReference(referenceId: string): Promise<boolean> {
