@@ -27,7 +27,7 @@
 
 ## AI-Powered
 
-- [ ] **Auto-tag** — Use the LM to suggest tags for a note based on its references
+- [x] **Auto-tag** — Use the LM to suggest tags for a note based on its references
 - [ ] **Question answering over notes** — "Which note covers authentication?" resolved locally
 - [ ] **Stale annotation refresh** — When `diff` detects changed code, offer to regenerate the annotation with the new code
 

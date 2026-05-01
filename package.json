@@ -206,6 +206,11 @@
         "command": "crosscodenotes.exportNote",
         "title": "Codebase Notebook: Export Note",
         "icon": "$(export)"
+      },
+      {
+        "command": "crosscodenotes.autoTag",
+        "title": "Codebase Notebook: Auto-Tag Note (AI)",
+        "icon": "$(sparkle)"
       }
     ],
     "menus": {

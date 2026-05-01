@@ -1605,3 +1605,132 @@ export function getExportNoteCommand(
     }
   );
 }
+
+export function getAutoTagCommand(
+  storage: NotesStorage,
+  notesTreeProvider: NotesTreeProvider
+) {
+  return vscode.commands.registerCommand(
+    createCommandName("autoTag"),
+    async () => {
+      const notes = storage.getNotes();
+      if (notes.length === 0) {
+        vscode.window.showWarningMessage("No notes available.");
+        return;
+      }
+
+      const items = notes.map((n) => ({
+        label: n.name,
+        description: n.tags?.length ? n.tags.map((t) => `#${t}`).join(" ") : "",
+        noteId: n.id,
+      }));
+
+      const picked = await vscode.window.showQuickPick(items, {
+        placeHolder: "Select a note to auto-tag",
+      });
+      if (!picked) {
+        return;
+      }
+
+      const note = storage.getNote(picked.noteId);
+      if (!note) {
+        return;
+      }
+
+      const refs = storage.getReferencesForNote(note.id);
+      const existingTags = storage.getAllTags();
+
+      // Build context for the LM
+      const refsSummary = refs
+        .map((r) => {
+          const baseName = path.basename(r.file);
+          return `- ${baseName}:${r.line} (${r.language}) — ${r.annotation || "no annotation"}`;
+        })
+        .join("\n");
+
+      const existingTagsList = existingTags.length > 0
+        ? `Existing tags in use: ${existingTags.join(", ")}`
+        : "No existing tags yet.";
+
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `Suggesting tags for "${note.name}"…`,
+          cancellable: true,
+        },
+        async (_progress, cancelToken) => {
+          const models = await vscode.lm.selectChatModels({
+            vendor: "copilot",
+            family: "gpt-4o",
+          });
+
+          if (models.length === 0) {
+            vscode.window.showErrorMessage(
+              "No language model available. Make sure GitHub Copilot is active."
+            );
+            return;
+          }
+
+          const model = models[0];
+
+          const messages = [
+            vscode.LanguageModelChatMessage.User(
+              `You are helping a developer tag a code research note.\n\n` +
+              `## Note: "${note.name}"\n` +
+              `Current tags: ${note.tags?.length ? note.tags.join(", ") : "none"}\n\n` +
+              `## References in this note\n${refsSummary || "No references yet."}\n\n` +
+              `## Context\n${existingTagsList}\n\n` +
+              `## Instructions\n` +
+              `Suggest 2-5 short, lowercase tags for this note based on its content and references.\n` +
+              `Prefer reusing existing tags when they fit. Tags should be single words or hyphenated (e.g., "auth", "error-handling", "perf").\n` +
+              `Respond with ONLY a comma-separated list of tags, nothing else.`
+            ),
+          ];
+
+          const response = await model.sendRequest(messages, {}, cancelToken);
+
+          let responseText = "";
+          for await (const chunk of response.text) {
+            responseText += chunk;
+          }
+
+          const suggestedTags = responseText
+            .trim()
+            .split(",")
+            .map((t) => t.trim().toLowerCase().replace(/[^a-z0-9-]/g, ""))
+            .filter((t) => t.length > 0);
+
+          if (suggestedTags.length === 0) {
+            vscode.window.showWarningMessage("No tags suggested.");
+            return;
+          }
+
+          // Let user pick which tags to apply
+          const tagItems = suggestedTags.map((t) => ({
+            label: `#${t}`,
+            picked: true,
+            tag: t,
+          }));
+
+          const selected = await vscode.window.showQuickPick(tagItems, {
+            placeHolder: "Select tags to apply",
+            canPickMany: true,
+          });
+
+          if (!selected || selected.length === 0) {
+            return;
+          }
+
+          for (const item of selected) {
+            await storage.addTag(note.id, item.tag);
+          }
+
+          notesTreeProvider.refresh();
+          vscode.window.showInformationMessage(
+            `Added tags: ${selected.map((s) => `#${s.tag}`).join(", ")}`
+          );
+        }
+      );
+    }
+  );
+}
