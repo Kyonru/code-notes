@@ -39,6 +39,7 @@ import {
   getDeleteAnnotationCommand,
   getSetAiApiKeyCommand,
   getClearAiApiKeyCommand,
+  getQuickAddCommand,
 } from "./commands";
 import { registerChatParticipant } from "./chat";
 import { initCodeLensProvider, NotesCodeLensProvider } from "./codelens";
@@ -201,6 +202,7 @@ export function activate(context: vscode.ExtensionContext) {
     getDeleteAnnotationCommand(storage, notesTreeProvider, provider),
     getSetAiApiKeyCommand(),
     getClearAiApiKeyCommand(),
+    getQuickAddCommand(context, storage, notesTreeProvider, provider),
     treeView,
     statusBarItem,
   );

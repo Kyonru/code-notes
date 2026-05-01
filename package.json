@@ -268,6 +268,10 @@
       {
         "command": "crosscodenotes.clearAiApiKey",
         "title": "Codebase Notebook: Clear AI API Key"
+      },
+      {
+        "command": "crosscodenotes.quickAdd",
+        "title": "Codebase Notebook: Quick Add Annotation"
       }
     ],
     "menus": {
@@ -494,6 +498,12 @@
         "command": "crosscodenotes.suggestNote",
         "key": "ctrl+shift+k",
         "mac": "cmd+shift+k"
+      },
+      {
+        "command": "crosscodenotes.quickAdd",
+        "key": "ctrl+shift+l",
+        "mac": "cmd+shift+l",
+        "when": "editorTextFocus"
       }
     ]
   },

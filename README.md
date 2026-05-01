@@ -29,6 +29,7 @@ Codebase Notebook is a VS Code extension that lets you take structured notes acr
 - Bulk add references — select multiple ranges or files at once
 - Auto-update line numbers when code shifts (file change watcher)
 - Hover preview — see annotation when hovering over referenced lines
+- **Quick Add** — Single-keystroke annotation without leaving the editor (`Cmd+Shift+L`)
 
 ### 🔌 AI Provider Flexibility
 
@@ -103,6 +104,7 @@ Additional AI commands (Command Palette):
 | `Codebase Notebook: Create Note from Template` | Create from a predefined template               |
 | `Codebase Notebook: Select Note`               | Switch the active note                          |
 | `Codebase Notebook: Add Reference`             | Attach a code reference to a note               |
+| `Codebase Notebook: Quick Add Annotation`      | Fast inline annotation (no dialogs)             |
 | `Codebase Notebook: Bulk Add References`       | Add multiple references at once                 |
 | `Codebase Notebook: Go to Reference`           | Jump to referenced file + line                  |
 | `Codebase Notebook: View Note`                 | Open preview of current note                    |
@@ -137,7 +139,17 @@ You'll find most actions in:
 | Action                    | Windows / Linux    | macOS             |
 | ------------------------- | ------------------ | ----------------- |
 | Add Reference to Notebook | `Ctrl + Shift + J` | `Cmd + Shift + J` |
+| Quick Add Annotation      | `Ctrl + Shift + L` | `Cmd + Shift + L` |
 | Suggest Note (AI)         | `Ctrl + Shift + K` | `Cmd + Shift + K` |
+
+### Quick Add vs Add Reference
+
+|                  | Add Reference (`Cmd+Shift+J`) | Quick Add (`Cmd+Shift+L`)                     |
+| ---------------- | ----------------------------- | --------------------------------------------- |
+| No note selected | Warning dialog → stops        | Auto-picks single note or shows inline picker |
+| Confirmation     | Modal with "View Note" button | Status bar flash (3 sec)                      |
+| Dialogs          | Up to 3                       | Just 1 (annotation input)                     |
+| Use case         | First-time / deliberate       | Rapid-fire while reading code                 |
 
 ## 🗂️ Where are notes stored?
 

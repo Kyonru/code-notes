@@ -2022,3 +2022,86 @@ export function getClearAiApiKeyCommand() {
     }
   );
 }
+
+export function getQuickAddCommand(
+  context: vscode.ExtensionContext,
+  storage: NotesStorage,
+  notesTreeProvider: NotesTreeProvider,
+  codeLensProvider: NotesCodeLensProvider
+) {
+  return vscode.commands.registerCommand(
+    createCommandName("quickAdd"),
+    async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        return;
+      }
+
+      const document = editor.document;
+      const selection = editor.selection;
+      const lineNumber = selection.start.line + 1;
+      const codeSnippet =
+        document.getText(selection).trim() ||
+        document.lineAt(selection.start.line).text.trim();
+      const baseName = path.basename(document.fileName);
+
+      // Resolve the target note
+      let notePath = context.workspaceState.get<string>("currentNote");
+
+      if (!notePath) {
+        // No active note — let user pick one quickly
+        const allNotes = storage.getNotes();
+        if (allNotes.length === 0) {
+          vscode.window.showWarningMessage(
+            "No notes exist. Create one first."
+          );
+          return;
+        }
+
+        if (allNotes.length === 1) {
+          notePath = allNotes[0].filePath;
+          context.workspaceState.update("currentNote", notePath);
+        } else {
+          const picked = await vscode.window.showQuickPick(
+            allNotes.map((n: NoteEntry) => ({ label: n.name, id: n.id, filePath: n.filePath })),
+            { placeHolder: "Pick a note for this annotation" }
+          );
+          if (!picked) {
+            return;
+          }
+          notePath = picked.filePath;
+          context.workspaceState.update("currentNote", notePath);
+        }
+      }
+
+      // Show inline input box with context hint
+      const annotation = await vscode.window.showInputBox({
+        prompt: `${baseName}:${lineNumber}`,
+        placeHolder: "Annotation (Enter to add, Escape to cancel)",
+        title: "Quick Add Annotation",
+      });
+
+      if (annotation === undefined) {
+        return; // Cancelled
+      }
+
+      const resolvedNoteId = path.basename(notePath!, ".md");
+      await storage.addReference(
+        resolvedNoteId,
+        document.fileName,
+        lineNumber,
+        codeSnippet,
+        document.languageId,
+        annotation
+      );
+
+      notesTreeProvider.refresh();
+      codeLensProvider.refresh();
+
+      vscode.window.setStatusBarMessage(
+        `$(check) Annotation added to ${resolvedNoteId}`,
+        3000
+      );
+    }
+  );
+}
