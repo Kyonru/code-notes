@@ -300,6 +300,11 @@
         "command": "crosscodenotes.autoAnnotate",
         "title": "Codebase Notebook: Auto Annotate (AI)",
         "icon": "$(sparkle)"
+      },
+      {
+        "command": "crosscodenotes.smartLinking",
+        "title": "Codebase Notebook: Smart Linking (AI)",
+        "icon": "$(link)"
       }
     ],
     "menus": {

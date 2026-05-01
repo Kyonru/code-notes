@@ -2531,3 +2531,168 @@ export function getAutoAnnotateCommand(
     }
   );
 }
+
+export function getSmartLinkingCommand(
+  storage: NotesStorage,
+  notesTreeProvider: NotesTreeProvider
+) {
+  return vscode.commands.registerCommand(
+    createCommandName("smartLinking"),
+    async () => {
+      const allRefs = storage.getAllReferences();
+      if (allRefs.length < 2) {
+        vscode.window.showInformationMessage(
+          "Need at least 2 references to find links."
+        );
+        return;
+      }
+
+      const notes = storage.getAllNotesIncludingArchived();
+      const noteMap = new Map(notes.map((n) => [n.id, n.name]));
+
+      // Build compact representation for the LLM
+      const refIndex = allRefs
+        .map((r, i) => {
+          const baseName = path.basename(r.file);
+          const noteName = noteMap.get(r.noteId) || r.noteId;
+          return `[${i}] note="${noteName}" | ${baseName}:${r.line} (${r.language}) | ${r.annotation || r.codeSnippet.substring(0, 80)}`;
+        })
+        .join("\n");
+
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: "Analyzing references for links…",
+          cancellable: true,
+        },
+        async (_progress, cancelToken) => {
+          const lm = getLMProvider();
+
+          const prompt =
+            `You are an expert at finding semantic relationships between code annotations.\n\n` +
+            `## All References\n${refIndex}\n\n` +
+            `## Instructions\n` +
+            `Find pairs of references that are semantically related (e.g., they interact, depend on each other, cover the same concept, or one calls/uses the other).\n` +
+            `Return up to 10 pairs. For each pair provide:\n` +
+            `- The two indices\n` +
+            `- A brief reason for the link (max 10 words)\n\n` +
+            `Respond in this exact format, one pair per line:\n` +
+            `index1,index2|reason\n\n` +
+            `Example:\n3,7|both handle authentication errors\n0,5|caller and callee relationship\n\n` +
+            `If no meaningful links exist, respond with "NONE".`;
+
+          let responseText = "";
+          try {
+            responseText = await lm.sendRequest(
+              [{ role: "user", content: prompt }],
+              cancelToken
+            );
+          } catch (err: any) {
+            if (err instanceof vscode.CancellationError) {
+              return;
+            }
+            vscode.window.showErrorMessage(
+              `Language model error: ${err.message}`
+            );
+            return;
+          }
+
+          const trimmed = responseText.trim();
+          if (trimmed === "NONE" || !trimmed) {
+            vscode.window.showInformationMessage(
+              "No related references found."
+            );
+            return;
+          }
+
+          // Parse response lines
+          interface LinkSuggestion {
+            refA: typeof allRefs[0];
+            refB: typeof allRefs[0];
+            indexA: number;
+            indexB: number;
+            reason: string;
+          }
+
+          const suggestions: LinkSuggestion[] = [];
+          for (const line of trimmed.split("\n")) {
+            const match = line.match(/^(\d+)\s*,\s*(\d+)\s*\|\s*(.+)$/);
+            if (!match) { continue; }
+            const a = parseInt(match[1], 10);
+            const b = parseInt(match[2], 10);
+            const reason = match[3].trim();
+            if (a >= 0 && a < allRefs.length && b >= 0 && b < allRefs.length && a !== b) {
+              suggestions.push({
+                refA: allRefs[a],
+                refB: allRefs[b],
+                indexA: a,
+                indexB: b,
+                reason,
+              });
+            }
+          }
+
+          if (suggestions.length === 0) {
+            vscode.window.showInformationMessage(
+              "No related references found."
+            );
+            return;
+          }
+
+          // Show suggestions as QuickPick items
+          const items = suggestions.map((s) => {
+            const nameA = `${path.basename(s.refA.file)}:${s.refA.line}`;
+            const nameB = `${path.basename(s.refB.file)}:${s.refB.line}`;
+            const noteA = noteMap.get(s.refA.noteId) || s.refA.noteId;
+            const noteB = noteMap.get(s.refB.noteId) || s.refB.noteId;
+            return {
+              label: `$(link) ${nameA} ↔ ${nameB}`,
+              description: s.reason,
+              detail: `[${noteA}] ↔ [${noteB}]`,
+              suggestion: s,
+            };
+          });
+
+          const picked = await vscode.window.showQuickPick(items, {
+            placeHolder: `${items.length} suggested link${items.length > 1 ? "s" : ""} — select to add cross-link comments`,
+            matchOnDetail: true,
+            matchOnDescription: true,
+            canPickMany: true,
+          });
+
+          if (!picked || picked.length === 0) {
+            return;
+          }
+
+          let linked = 0;
+          for (const item of picked) {
+            const { refA, refB, reason } = item.suggestion;
+            const nameA = `${path.basename(refA.file)}:${refA.line}`;
+            const nameB = `${path.basename(refB.file)}:${refB.line}`;
+            const noteA = noteMap.get(refA.noteId) || refA.noteId;
+            const noteB = noteMap.get(refB.noteId) || refB.noteId;
+
+            // Add cross-link comment on refA pointing to refB
+            await storage.addComment(
+              refA.id,
+              `🔗 Related: ${nameB} in "${noteB}" — ${reason}`
+            );
+
+            // Add cross-link comment on refB pointing to refA
+            await storage.addComment(
+              refB.id,
+              `🔗 Related: ${nameA} in "${noteA}" — ${reason}`
+            );
+
+            linked++;
+          }
+
+          notesTreeProvider.refresh();
+          vscode.window.showInformationMessage(
+            `Added ${linked} cross-link${linked > 1 ? "s" : ""} as comments.`
+          );
+        }
+      );
+    }
+  );
+}
