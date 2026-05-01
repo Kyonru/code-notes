@@ -2264,3 +2264,122 @@ export function getViewHistoryCommand(storage: NotesStorage) {
     }
   );
 }
+
+export function getSemanticSearchCommand(storage: NotesStorage) {
+  return vscode.commands.registerCommand(
+    createCommandName("semanticSearch"),
+    async () => {
+      const query = await vscode.window.showInputBox({
+        prompt: "Search annotations with natural language",
+        placeHolder: "e.g. error handling in the API layer",
+        title: "Semantic Search",
+      });
+
+      if (!query) {
+        return;
+      }
+
+      const allRefs = storage.getAllReferences();
+      if (allRefs.length === 0) {
+        vscode.window.showWarningMessage("No annotations to search.");
+        return;
+      }
+
+      const notes = storage.getAllNotesIncludingArchived();
+      const noteMap = new Map(notes.map((n) => [n.id, n.name]));
+
+      // Build compact index for the LLM
+      const refIndex = allRefs.map((r, i) => {
+        const baseName = path.basename(r.file);
+        return `[${i}] ${noteMap.get(r.noteId) || r.noteId} | ${baseName}:${r.line} | ${r.annotation || r.codeSnippet.substring(0, 80)}`;
+      }).join("\n");
+
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: "Searching…",
+          cancellable: true,
+        },
+        async (_progress, cancelToken) => {
+          const lm = getLMProvider();
+
+          const prompt =
+            `You are a semantic search engine over code annotations.\n\n` +
+            `## Annotations\n${refIndex}\n\n` +
+            `## Query\n${query}\n\n` +
+            `## Instructions\n` +
+            `Return the indices of the most relevant annotations (max 10) that match the query.\n` +
+            `Respond with ONLY a comma-separated list of numbers (e.g., "3,7,0,12").\n` +
+            `Order by relevance (most relevant first). If nothing matches, respond with "NONE".`;
+
+          let responseText = "";
+          try {
+            responseText = await lm.sendRequest(
+              [{ role: "user", content: prompt }],
+              cancelToken
+            );
+          } catch (err: any) {
+            if (err instanceof vscode.CancellationError) {
+              return;
+            }
+            vscode.window.showErrorMessage(
+              `Language model error: ${err.message}`
+            );
+            return;
+          }
+
+          const trimmed = responseText.trim();
+          if (trimmed === "NONE" || !trimmed) {
+            vscode.window.showInformationMessage(
+              "No matching annotations found."
+            );
+            return;
+          }
+
+          const indices = trimmed
+            .replace(/[[\]]/g, "")
+            .split(/[,\s]+/)
+            .map((s) => parseInt(s.trim(), 10))
+            .filter((n) => !isNaN(n) && n >= 0 && n < allRefs.length);
+
+          if (indices.length === 0) {
+            vscode.window.showInformationMessage(
+              "No matching annotations found."
+            );
+            return;
+          }
+
+          const results = indices.map((i) => {
+            const ref = allRefs[i];
+            const baseName = path.basename(ref.file);
+            const noteName = noteMap.get(ref.noteId) || ref.noteId;
+            return {
+              label: `$(file) ${baseName}:${ref.line}`,
+              description: noteName,
+              detail: ref.annotation || ref.codeSnippet.substring(0, 100),
+              ref,
+            };
+          });
+
+          const picked = await vscode.window.showQuickPick(results, {
+            placeHolder: `${results.length} result${results.length > 1 ? "s" : ""} for "${query}"`,
+            matchOnDetail: true,
+            matchOnDescription: true,
+          });
+
+          if (picked) {
+            const ref = picked.ref;
+            if (fs.existsSync(ref.file)) {
+              const doc = await vscode.workspace.openTextDocument(ref.file);
+              const editor = await vscode.window.showTextDocument(doc);
+              const line = Math.max(0, ref.line - 1);
+              const range = new vscode.Range(line, 0, line, 0);
+              editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+              editor.selection = new vscode.Selection(range.start, range.start);
+            }
+          }
+        }
+      );
+    }
+  );
+}

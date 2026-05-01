@@ -287,6 +287,11 @@
         "command": "crosscodenotes.viewHistory",
         "title": "Codebase Notebook: View Annotation History",
         "icon": "$(history)"
+      },
+      {
+        "command": "crosscodenotes.semanticSearch",
+        "title": "Codebase Notebook: Semantic Search (AI)",
+        "icon": "$(sparkle)"
       }
     ],
     "menus": {
@@ -324,6 +329,12 @@
         {
           "command": "crosscodenotes.toggleShowArchived",
           "title": "Toggle Archived",
+          "when": "view == codeNotesView",
+          "group": "navigation"
+        },
+        {
+          "command": "crosscodenotes.semanticSearch",
+          "title": "AI Search",
           "when": "view == codeNotesView",
           "group": "navigation"
         }

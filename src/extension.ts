@@ -44,6 +44,7 @@ import {
   getDetectBrokenReferencesCommand,
   detectBrokenReferences,
   getViewHistoryCommand,
+  getSemanticSearchCommand,
 } from "./commands";
 import { registerChatParticipant } from "./chat";
 import { initCodeLensProvider, NotesCodeLensProvider } from "./codelens";
@@ -272,6 +273,7 @@ export function activate(context: vscode.ExtensionContext) {
     getQuickAddCommand(context, storage, notesTreeProvider, provider),
     getDetectBrokenReferencesCommand(storage, notesTreeProvider, provider),
     getViewHistoryCommand(storage),
+    getSemanticSearchCommand(storage),
     treeView,
     statusBarItem,
     badgeItem,
