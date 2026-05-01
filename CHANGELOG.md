@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [v0.3.1] - 2026-05-01
+
+- Improves Readme
+- Improves release process
+
 ## [v0.3.0] - 2026-05-01
 
 ### AI Features
@@ -74,6 +79,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Initial Release
 - Add note taking
 
+[v0.3.1]: https://github.com/Kyonru/code-notes/compare/v0.3.0...v0.3.1
 [v0.3.0]: https://github.com/Kyonru/code-notes/compare/v0.2.0...v0.3.0
 [v0.2.0]: https://github.com/Kyonru/code-notes/compare/v0.1.0...v0.2.0
 [v0.1.0]: https://github.com/Kyonru/code-notes/releases/tag/v0.1.0
