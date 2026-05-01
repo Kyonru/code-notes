@@ -186,7 +186,7 @@ export function getGoToReferenceCommand() {
       referencePath: string,
       lineNumber: number,
       notePath: string,
-      referenceId: string
+      _referenceId: string
     ) => {
       if (!fs.existsSync(referencePath)) {
         vscode.window.showErrorMessage(`File not found: ${referencePath}`);
@@ -327,6 +327,54 @@ export function getViewNoteAtCommand() {
           editor.selection = new vscode.Selection(pos, pos);
           editor.revealRange(new vscode.Range(pos, pos));
         }
+      }
+    }
+  );
+}
+
+export function getApplyAnnotatedReferenceCommand(
+  storage: NotesStorage,
+  notesTreeProvider: NotesTreeProvider,
+  provider: NotesCodeLensProvider
+) {
+  return vscode.commands.registerCommand(
+    createCommandName("applyAnnotatedReference"),
+    async (args: {
+      noteId: string;
+      file: string;
+      line: number;
+      codeSnippet: string;
+      language: string;
+      annotation: string;
+    }) => {
+      if (!args || !args.noteId) {
+        vscode.window.showErrorMessage("Invalid reference data.");
+        return;
+      }
+
+      try {
+        await storage.addReference(
+          args.noteId,
+          args.file,
+          args.line,
+          args.codeSnippet,
+          args.language,
+          args.annotation
+        );
+
+        notesTreeProvider.refresh();
+        provider.refresh();
+
+        const result = await vscode.window.showInformationMessage(
+          "Reference added to note!",
+          "View Note"
+        );
+
+        if (result === "View Note") {
+          vscode.commands.executeCommand(createCommandName("viewNote"));
+        }
+      } catch (err: any) {
+        vscode.window.showErrorMessage(`Failed to add reference: ${err.message}`);
       }
     }
   );

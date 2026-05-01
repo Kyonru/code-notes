@@ -6,6 +6,7 @@ import { NotesTreeProvider } from "./treeView";
 import {
   gerRefreshTreeCommand,
   getAddReferenceCommand,
+  getApplyAnnotatedReferenceCommand,
   getCreateNoteCommand,
   getDeleteNoteCommand,
   getGoToReferenceCommand,
@@ -17,6 +18,7 @@ import {
   getSearchNotesCommand,
   getChangeNotesDirectoryCommand,
 } from "./commands";
+import { registerChatParticipant } from "./chat";
 import { initCodeLensProvider, NotesCodeLensProvider } from "./codelens";
 import { NotesStorage } from "./storage";
 import { migrateIfNeeded } from "./migration";
@@ -77,6 +79,9 @@ export function activate(context: vscode.ExtensionContext) {
   const viewNoteAt = getViewNoteAtCommand();
   const searchNotes = getSearchNotesCommand(storage);
   const changeNotesDirectory = getChangeNotesDirectoryCommand(context, storage, notesTreeProvider, provider);
+  const applyAnnotatedReference = getApplyAnnotatedReferenceCommand(storage, notesTreeProvider, provider);
+
+  registerChatParticipant(context, storage);
 
   updateStatusBar();
 
@@ -93,6 +98,7 @@ export function activate(context: vscode.ExtensionContext) {
     changeNotesDirectory,
     searchNotes,
     openNoteFromTree,
+    applyAnnotatedReference,
     treeView,
     statusBarItem
   );

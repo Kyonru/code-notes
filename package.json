@@ -157,6 +157,25 @@
         }
       ]
     },
+    "chatParticipants": [
+      {
+        "id": "crosscodenotes.assistant",
+        "name": "codenotes",
+        "fullName": "Codebase Notebook",
+        "description": "Ask questions about your notes, generate AI annotations, and summarize your research",
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "annotate",
+            "description": "Generate an AI annotation for the selected code and add it to the active note"
+          },
+          {
+            "name": "summarize",
+            "description": "Summarize your notes. Optionally pass a note name to focus on one note"
+          }
+        ]
+      }
+    ],
     "keybindings": [
       {
         "command": "crosscodenotes.addReference",
