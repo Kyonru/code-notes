@@ -48,6 +48,7 @@ import {
   getAutoAnnotateCommand,
   getSmartLinkingCommand,
   getAnnotationQualityCommand,
+  getCodeReviewAssistantCommand,
 } from "./commands";
 import { registerChatParticipant } from "./chat";
 import { initCodeLensProvider, NotesCodeLensProvider } from "./codelens";
@@ -280,6 +281,7 @@ export function activate(context: vscode.ExtensionContext) {
     getAutoAnnotateCommand(context, storage, notesTreeProvider, provider),
     getSmartLinkingCommand(storage, notesTreeProvider),
     getAnnotationQualityCommand(storage, notesTreeProvider),
+    getCodeReviewAssistantCommand(storage),
     treeView,
     statusBarItem,
     badgeItem,

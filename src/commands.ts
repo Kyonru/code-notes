@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
+import { execSync } from "child_process";
 
 import { NoteItem, NotesTreeProvider } from "./treeView";
 import { createCommandName, getDefaultNotesDir, getNotesDir } from "./utils";
@@ -2864,6 +2865,218 @@ export function getAnnotationQualityCommand(
             vscode.window.showInformationMessage(
               `Updated ${updated} annotation${updated > 1 ? "s" : ""}.`
             );
+          }
+        }
+      );
+    }
+  );
+}
+
+export function getCodeReviewAssistantCommand(storage: NotesStorage) {
+  return vscode.commands.registerCommand(
+    createCommandName("codeReviewAssistant"),
+    async () => {
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      if (!workspaceFolders || workspaceFolders.length === 0) {
+        vscode.window.showWarningMessage("No workspace folder open.");
+        return;
+      }
+
+      const cwd = workspaceFolders[0].uri.fsPath;
+
+      // Get git diff (staged + unstaged changes)
+      let diffOutput = "";
+      try {
+        // Try staged first, fall back to unstaged, then HEAD~1
+        diffOutput = execSync("git diff --cached --name-only", { cwd, encoding: "utf-8" }).trim();
+        if (!diffOutput) {
+          diffOutput = execSync("git diff --name-only", { cwd, encoding: "utf-8" }).trim();
+        }
+        if (!diffOutput) {
+          diffOutput = execSync("git diff HEAD~1 --name-only", { cwd, encoding: "utf-8" }).trim();
+        }
+      } catch {
+        vscode.window.showWarningMessage(
+          "Could not run git diff. Make sure you're in a git repository."
+        );
+        return;
+      }
+
+      if (!diffOutput) {
+        vscode.window.showInformationMessage("No changed files found.");
+        return;
+      }
+
+      const changedFiles = diffOutput
+        .split("\n")
+        .map((f) => path.resolve(cwd, f.trim()))
+        .filter((f) => f.length > 0);
+
+      // Find direct hits: annotations on changed files
+      const allRefs = storage.getAllReferences();
+      const notes = storage.getAllNotesIncludingArchived();
+      const noteMap = new Map(notes.map((n) => [n.id, n.name]));
+
+      const directHits = allRefs.filter((r) =>
+        changedFiles.some((cf) => path.resolve(cf) === path.resolve(r.file))
+      );
+
+      // Get changed line details for context
+      let diffDetails = "";
+      try {
+        const diffCmd = execSync("git diff --cached -U3", { cwd, encoding: "utf-8" }).trim()
+          || execSync("git diff -U3", { cwd, encoding: "utf-8" }).trim()
+          || execSync("git diff HEAD~1 -U3", { cwd, encoding: "utf-8" }).trim();
+        // Truncate to avoid token overflow
+        diffDetails = diffCmd.substring(0, 4000);
+      } catch {
+        // Non-critical
+      }
+
+      // Build context for AI to find semantically related annotations
+      const otherRefs = allRefs.filter(
+        (r) => !changedFiles.some((cf) => path.resolve(cf) === path.resolve(r.file))
+      );
+
+      const directInfo = directHits.length > 0
+        ? directHits
+          .map((r) => {
+            const baseName = path.basename(r.file);
+            const noteName = noteMap.get(r.noteId) || r.noteId;
+            return `- [${noteName}] ${baseName}:${r.line} — ${r.annotation || r.codeSnippet.substring(0, 60)}`;
+          })
+          .join("\n")
+        : "(none)";
+
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: "Reviewing annotations for changed code…",
+          cancellable: true,
+        },
+        async (_progress, cancelToken) => {
+          const lm = getLMProvider();
+
+          // Build other refs index (compact)
+          const otherIndex = otherRefs
+            .slice(0, 50)
+            .map((r, i) => {
+              const baseName = path.basename(r.file);
+              const noteName = noteMap.get(r.noteId) || r.noteId;
+              return `[${i}] "${noteName}" | ${baseName}:${r.line} | ${r.annotation || r.codeSnippet.substring(0, 60)}`;
+            })
+            .join("\n");
+
+          const prompt =
+            `You are a code review assistant. Identify annotations relevant to the code changes being reviewed.\n\n` +
+            `## Changed Files\n${changedFiles.map((f) => path.basename(f)).join(", ")}\n\n` +
+            `## Diff (partial)\n\`\`\`\n${diffDetails || "(no diff available)"}\n\`\`\`\n\n` +
+            `## Annotations directly on changed files\n${directInfo}\n\n` +
+            `## Other annotations in the codebase\n${otherIndex || "(none)"}\n\n` +
+            `## Instructions\n` +
+            `1. For each annotation on changed files, briefly explain why the reviewer should pay attention to it given the changes.\n` +
+            `2. From the "other annotations" list, identify any that are semantically related to the changes (max 5). Use their [index].\n\n` +
+            `Respond in this format:\n` +
+            `## Direct\n` +
+            `- file:line | reason to review\n\n` +
+            `## Related\n` +
+            `- [index] | why it's relevant to this change\n\n` +
+            `If there's nothing relevant, say "NO_RELEVANT_ANNOTATIONS".`;
+
+          let responseText = "";
+          try {
+            responseText = await lm.sendRequest(
+              [{ role: "user", content: prompt }],
+              cancelToken
+            );
+          } catch (err: any) {
+            if (err instanceof vscode.CancellationError) {
+              return;
+            }
+            vscode.window.showErrorMessage(
+              `Language model error: ${err.message}`
+            );
+            return;
+          }
+
+          const trimmed = responseText.trim();
+          if (trimmed === "NO_RELEVANT_ANNOTATIONS") {
+            vscode.window.showInformationMessage(
+              "No relevant annotations for these changes."
+            );
+            return;
+          }
+
+          // Build navigable items from direct hits + related refs
+          interface ReviewItem {
+            label: string;
+            description: string;
+            detail: string;
+            file?: string;
+            line?: number;
+          }
+
+          const items: ReviewItem[] = [];
+
+          // Add direct hits as navigable items
+          for (const r of directHits) {
+            const baseName = path.basename(r.file);
+            const noteName = noteMap.get(r.noteId) || r.noteId;
+            items.push({
+              label: `$(alert) ${baseName}:${r.line}`,
+              description: `[${noteName}]`,
+              detail: r.annotation || r.codeSnippet.substring(0, 100),
+              file: r.file,
+              line: r.line,
+            });
+          }
+
+          // Parse related indices from response
+          const relatedPattern = /\[(\d+)\]/g;
+          let match: RegExpExecArray | null;
+          const seenIndices = new Set<number>();
+          while ((match = relatedPattern.exec(trimmed)) !== null) {
+            const idx = parseInt(match[1], 10);
+            if (idx >= 0 && idx < otherRefs.length && !seenIndices.has(idx)) {
+              seenIndices.add(idx);
+              const r = otherRefs[idx];
+              const baseName = path.basename(r.file);
+              const noteName = noteMap.get(r.noteId) || r.noteId;
+              items.push({
+                label: `$(link) ${baseName}:${r.line}`,
+                description: `[${noteName}] (related)`,
+                detail: r.annotation || r.codeSnippet.substring(0, 100),
+                file: r.file,
+                line: r.line,
+              });
+            }
+          }
+
+          if (items.length === 0) {
+            // Show the raw AI analysis
+            const doc = await vscode.workspace.openTextDocument({
+              content: `# Code Review Notes\n\n${trimmed}`,
+              language: "markdown",
+            });
+            await vscode.window.showTextDocument(doc, { preview: true });
+            return;
+          }
+
+          const picked = await vscode.window.showQuickPick(items, {
+            placeHolder: `${items.length} annotation${items.length > 1 ? "s" : ""} relevant to your changes`,
+            matchOnDetail: true,
+            matchOnDescription: true,
+          });
+
+          if (picked && picked.file && picked.line) {
+            if (fs.existsSync(picked.file)) {
+              const doc = await vscode.workspace.openTextDocument(picked.file);
+              const editor = await vscode.window.showTextDocument(doc);
+              const line = Math.max(0, picked.line - 1);
+              const range = new vscode.Range(line, 0, line, 0);
+              editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+              editor.selection = new vscode.Selection(range.start, range.start);
+            }
           }
         }
       );

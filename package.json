@@ -310,6 +310,11 @@
         "command": "crosscodenotes.annotationQuality",
         "title": "Codebase Notebook: Annotation Quality Score (AI)",
         "icon": "$(checklist)"
+      },
+      {
+        "command": "crosscodenotes.codeReviewAssistant",
+        "title": "Codebase Notebook: Code Review Assistant (AI)",
+        "icon": "$(git-pull-request)"
       }
     ],
     "menus": {
