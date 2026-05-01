@@ -541,6 +541,93 @@ export function getChangeNotesDirectoryCommand(
   );
 }
 
+export function getBulkAddReferencesCommand(
+  context: vscode.ExtensionContext,
+  storage: NotesStorage,
+  notesTreeProvider: NotesTreeProvider,
+  provider: NotesCodeLensProvider
+) {
+  return vscode.commands.registerCommand(
+    createCommandName("bulkAddReferences"),
+    async () => {
+      const currentNotePath = context.workspaceState.get<string>("currentNote");
+
+      if (!currentNotePath) {
+        const action = await vscode.window.showWarningMessage(
+          "No note selected. Would you like to select one?",
+          "Select Note",
+          "Create Note"
+        );
+
+        if (action === "Select Note") {
+          await vscode.commands.executeCommand(createCommandName("selectNote"));
+        } else if (action === "Create Note") {
+          await vscode.commands.executeCommand(createCommandName("createNote"));
+        }
+        return;
+      }
+
+      const noteId = path.basename(currentNotePath, ".md");
+      const editor = vscode.window.activeTextEditor;
+
+      if (!editor) {
+        vscode.window.showErrorMessage("No active editor!");
+        return;
+      }
+
+      const document = editor.document;
+      const selections = editor.selections;
+
+      // Use all multi-cursor selections
+      if (selections.length < 2) {
+        vscode.window.showInformationMessage(
+          "Use multiple cursors/selections (Cmd+D or Alt+Click) to select multiple code ranges, then run this command."
+        );
+        return;
+      }
+
+      const annotation = await vscode.window.showInputBox({
+        prompt: `Add annotation for all ${selections.length} references (optional)`,
+        placeHolder: "Enter shared annotation for these references...",
+      });
+
+      if (annotation === undefined) {
+        return; // User cancelled
+      }
+
+      let added = 0;
+      for (const sel of selections) {
+        const selectedText = document.getText(sel);
+        const lineNumber = sel.start.line + 1;
+        const snippet =
+          selectedText || document.lineAt(sel.start.line).text;
+
+        await storage.addReference(
+          noteId,
+          document.fileName,
+          lineNumber,
+          snippet,
+          document.languageId,
+          annotation
+        );
+        added++;
+      }
+
+      notesTreeProvider.refresh();
+      provider.refresh();
+
+      const result = await vscode.window.showInformationMessage(
+        `Added ${added} references to note!`,
+        "View Note"
+      );
+
+      if (result === "View Note") {
+        vscode.commands.executeCommand(createCommandName("viewNote"));
+      }
+    }
+  );
+}
+
 export function getTogglePinReferenceCommand(
   storage: NotesStorage,
   notesTreeProvider: NotesTreeProvider

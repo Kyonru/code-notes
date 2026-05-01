@@ -7,6 +7,7 @@ import {
   gerRefreshTreeCommand,
   getAddReferenceCommand,
   getApplyAnnotatedReferenceCommand,
+  getBulkAddReferencesCommand,
   getCreateNoteCommand,
   getDeleteNoteCommand,
   getGoToReferenceCommand,
@@ -111,6 +112,12 @@ export function activate(context: vscode.ExtensionContext) {
     storage,
     notesTreeProvider,
   );
+  const bulkAddReferences = getBulkAddReferencesCommand(
+    context,
+    storage,
+    notesTreeProvider,
+    provider,
+  );
 
   registerChatParticipant(context, storage);
   initInlineCompletionProvider(context, storage);
@@ -133,6 +140,7 @@ export function activate(context: vscode.ExtensionContext) {
     applyAnnotatedReference,
     suggestNote,
     togglePinReference,
+    bulkAddReferences,
     treeView,
     statusBarItem,
   );

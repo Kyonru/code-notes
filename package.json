@@ -125,6 +125,11 @@
         "command": "crosscodenotes.togglePinReference",
         "title": "Codebase Notebook: Pin/Unpin Reference",
         "icon": "$(pin)"
+      },
+      {
+        "command": "crosscodenotes.bulkAddReferences",
+        "title": "Codebase Notebook: Bulk Add References",
+        "icon": "$(files)"
       }
     ],
     "menus": {
@@ -188,8 +193,12 @@
           "group": "1_notes@1"
         },
         {
-          "command": "crosscodenotes.suggestNote",
+          "command": "crosscodenotes.bulkAddReferences",
           "group": "1_notes@2"
+        },
+        {
+          "command": "crosscodenotes.suggestNote",
+          "group": "1_notes@3"
         },
         {
           "command": "crosscodenotes.createNote",
