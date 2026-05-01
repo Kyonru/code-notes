@@ -6,7 +6,6 @@
 
 ## AI-Enhanced Features
 
-- [ ] Semantic search over notes (natural language queries across all annotations)
 - [ ] Smart linking (auto-detect related references and suggest cross-links)
 - [ ] Code change impact analysis (identify affected annotations from git diffs)
 - [ ] Auto-annotation from PR (suggest annotations for notable PR changes)

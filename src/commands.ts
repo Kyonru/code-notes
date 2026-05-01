@@ -2383,3 +2383,151 @@ export function getSemanticSearchCommand(storage: NotesStorage) {
     }
   );
 }
+
+export function getAutoAnnotateCommand(
+  context: vscode.ExtensionContext,
+  storage: NotesStorage,
+  notesTreeProvider: NotesTreeProvider,
+  codeLensProvider: NotesCodeLensProvider
+) {
+  return vscode.commands.registerCommand(
+    createCommandName("autoAnnotate"),
+    async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showWarningMessage("No active editor.");
+        return;
+      }
+
+      const document = editor.document;
+      const selection = editor.selection;
+      const codeSnippet =
+        document.getText(selection).trim() ||
+        document.lineAt(selection.start.line).text.trim();
+      const lineNumber = selection.start.line + 1;
+
+      // Resolve current note
+      let notePath = context.workspaceState.get<string>("currentNote");
+
+      if (!notePath) {
+        const allNotes = storage.getNotes();
+        if (allNotes.length === 0) {
+          vscode.window.showWarningMessage(
+            "No notes exist. Create one first."
+          );
+          return;
+        }
+
+        const picked = await vscode.window.showQuickPick(
+          allNotes.map((n: NoteEntry) => ({
+            label: n.name,
+            id: n.id,
+            filePath: n.filePath,
+          })),
+          { placeHolder: "Pick a note for auto-annotation" }
+        );
+        if (!picked) {
+          return;
+        }
+        notePath = picked.filePath;
+        context.workspaceState.update("currentNote", notePath);
+      }
+
+      const noteId = path.basename(notePath, ".md");
+      const noteEntry = storage
+        .getAllNotesIncludingArchived()
+        .find((n) => n.id === noteId);
+      const noteName = noteEntry?.name || noteId;
+
+      // Gather existing references for context
+      const existingRefs = storage.getReferencesForNote(noteId);
+      const refContext = existingRefs
+        .slice(0, 10)
+        .map((r) => {
+          const baseName = path.basename(r.file);
+          return `- ${baseName}:${r.line} — ${r.annotation || r.codeSnippet.substring(0, 60)}`;
+        })
+        .join("\n");
+
+      // Get surrounding code for broader context
+      const startLine = Math.max(0, selection.start.line - 5);
+      const endLine = Math.min(document.lineCount - 1, selection.end.line + 5);
+      const surroundingRange = new vscode.Range(startLine, 0, endLine, document.lineAt(endLine).text.length);
+      const surroundingCode = document.getText(surroundingRange);
+
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: "Generating annotation…",
+          cancellable: true,
+        },
+        async (_progress, cancelToken) => {
+          const lm = getLMProvider();
+
+          const prompt =
+            `You are an expert code annotator. Generate a brief, insightful annotation for the selected code.\n\n` +
+            `## Note Context\n` +
+            `Note name: "${noteName}"\n` +
+            `Existing annotations in this note:\n${refContext || "(none yet)"}\n\n` +
+            `## File: ${path.basename(document.fileName)} (${document.languageId})\n` +
+            `### Surrounding code:\n\`\`\`${document.languageId}\n${surroundingCode}\n\`\`\`\n\n` +
+            `### Selected code (line ${lineNumber}):\n\`\`\`${document.languageId}\n${codeSnippet}\n\`\`\`\n\n` +
+            `## Instructions\n` +
+            `Write a concise annotation (1-2 sentences) explaining what this code does and why it's notable in the context of the note "${noteName}".\n` +
+            `Consider the existing annotations to maintain consistency in tone and detail level.\n` +
+            `Respond with ONLY the annotation text, no prefix or formatting.`;
+
+          let annotation = "";
+          try {
+            annotation = await lm.sendRequest(
+              [{ role: "user", content: prompt }],
+              cancelToken
+            );
+          } catch (err: any) {
+            if (err instanceof vscode.CancellationError) {
+              return;
+            }
+            vscode.window.showErrorMessage(
+              `Language model error: ${err.message}`
+            );
+            return;
+          }
+
+          annotation = annotation.trim();
+          if (!annotation) {
+            vscode.window.showWarningMessage("AI returned empty annotation.");
+            return;
+          }
+
+          // Show the generated annotation and let user accept/edit/cancel
+          const editedAnnotation = await vscode.window.showInputBox({
+            prompt: "AI-generated annotation (edit or press Enter to accept)",
+            value: annotation,
+            title: `Auto Annotate → ${noteName}`,
+          });
+
+          if (editedAnnotation === undefined) {
+            return; // Cancelled
+          }
+
+          await storage.addReference(
+            noteId,
+            document.fileName,
+            lineNumber,
+            codeSnippet,
+            document.languageId,
+            editedAnnotation
+          );
+
+          notesTreeProvider.refresh();
+          codeLensProvider.refresh();
+
+          vscode.window.setStatusBarMessage(
+            `$(sparkle) Auto-annotated to "${noteName}"`,
+            3000
+          );
+        }
+      );
+    }
+  );
+}

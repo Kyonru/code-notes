@@ -249,7 +249,7 @@
       {
         "command": "crosscodenotes.askNotes",
         "title": "Codebase Notebook: Ask Notes (AI)",
-        "icon": "$(search)"
+        "icon": "$(sparkle)"
       },
       {
         "command": "crosscodenotes.refreshStaleAnnotations",
@@ -263,15 +263,18 @@
       },
       {
         "command": "crosscodenotes.setAiApiKey",
-        "title": "Codebase Notebook: Set AI API Key"
+        "title": "Codebase Notebook: Set AI API Key",
+        "icon": "$(sparkle)"
       },
       {
         "command": "crosscodenotes.clearAiApiKey",
-        "title": "Codebase Notebook: Clear AI API Key"
+        "title": "Codebase Notebook: Clear AI API Key",
+        "icon": "$(sparkle)"
       },
       {
         "command": "crosscodenotes.quickAdd",
-        "title": "Codebase Notebook: Quick Add Annotation"
+        "title": "Codebase Notebook: Quick Add Annotation",
+        "icon": "$(sparkle)"
       },
       {
         "command": "crosscodenotes.showTimeline",
@@ -291,6 +294,11 @@
       {
         "command": "crosscodenotes.semanticSearch",
         "title": "Codebase Notebook: Semantic Search (AI)",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "crosscodenotes.autoAnnotate",
+        "title": "Codebase Notebook: Auto Annotate (AI)",
         "icon": "$(sparkle)"
       }
     ],
@@ -461,6 +469,10 @@
           "group": "1_notes@3"
         },
         {
+          "command": "crosscodenotes.autoAnnotate",
+          "group": "1_notes@4"
+        },
+        {
           "command": "crosscodenotes.createNote",
           "group": "2_manage@1"
         },
@@ -534,6 +546,12 @@
         "command": "crosscodenotes.quickAdd",
         "key": "ctrl+shift+l",
         "mac": "cmd+shift+l",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "crosscodenotes.autoAnnotate",
+        "key": "ctrl+shift+;",
+        "mac": "cmd+shift+;",
         "when": "editorTextFocus"
       }
     ]

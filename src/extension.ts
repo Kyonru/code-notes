@@ -45,6 +45,7 @@ import {
   detectBrokenReferences,
   getViewHistoryCommand,
   getSemanticSearchCommand,
+  getAutoAnnotateCommand,
 } from "./commands";
 import { registerChatParticipant } from "./chat";
 import { initCodeLensProvider, NotesCodeLensProvider } from "./codelens";
@@ -274,6 +275,7 @@ export function activate(context: vscode.ExtensionContext) {
     getDetectBrokenReferencesCommand(storage, notesTreeProvider, provider),
     getViewHistoryCommand(storage),
     getSemanticSearchCommand(storage),
+    getAutoAnnotateCommand(context, storage, notesTreeProvider, provider),
     treeView,
     statusBarItem,
     badgeItem,
