@@ -172,6 +172,10 @@
           {
             "name": "summarize",
             "description": "Summarize your notes. Optionally pass a note name to focus on one note"
+          },
+          {
+            "name": "relate",
+            "description": "Find connections between the active note and your other notes"
           }
         ]
       }

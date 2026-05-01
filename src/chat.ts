@@ -33,6 +33,9 @@ function makeHandler(
       if (request.command === "summarize") {
         return await handleSummarize(request, stream, storage, token);
       }
+      if (request.command === "relate") {
+        return await handleRelate(request, stream, storage, token, context);
+      }
       return await handleDefault(request, stream, storage, token);
     } catch (err) {
       if (err instanceof vscode.LanguageModelError) {
@@ -211,6 +214,117 @@ async function handleSummarize(
   for (const note of targets) {
     if (fs.existsSync(note.filePath)) {
       stream.reference(vscode.Uri.file(note.filePath));
+    }
+  }
+
+  return {};
+}
+
+async function handleRelate(
+  request: vscode.ChatRequest,
+  stream: vscode.ChatResponseStream,
+  storage: NotesStorage,
+  token: vscode.CancellationToken,
+  context: vscode.ExtensionContext,
+): Promise<vscode.ChatResult> {
+  const notes = storage.getNotes();
+
+  if (notes.length < 2) {
+    stream.markdown(
+      "You need at least **2 notes** before connections can be found. Create more notes and add references to them first.",
+    );
+    return {};
+  }
+
+  // Resolve the target note: from prompt, from active note, or ask
+  const query = request.prompt.trim().toLowerCase();
+  let targetNote = query
+    ? notes.find((n) => n.name.toLowerCase().includes(query))
+    : null;
+
+  if (!targetNote) {
+    const currentNotePath = context.workspaceState.get<string>("currentNote");
+    const activeId = currentNotePath
+      ? path.basename(currentNotePath, ".md")
+      : null;
+    targetNote = activeId ? notes.find((n) => n.id === activeId) ?? null : null;
+  }
+
+  if (!targetNote) {
+    stream.markdown(
+      "Specify a note name or select one first with **Codebase Notebook: Select Note**.\n\n" +
+        `Available notes: ${notes.map((n) => `\`${n.name}\``).join(", ")}`,
+    );
+    return {};
+  }
+
+  stream.progress(`Finding connections for "${targetNote.name}"...`);
+
+  // Build a compact context: target note first, then all others
+  const otherNotes = notes.filter((n) => n.id !== targetNote!.id);
+  const targetCtx = buildNotesContext(storage, [targetNote]);
+  const othersCtx = buildNotesContext(storage, otherNotes);
+
+  // Pre-compute shared files between the target and each other note so the
+  // LLM has hard data to reason from (it can still find semantic connections
+  // beyond what we surface here)
+  const targetFiles = new Set(
+    storage.getReferencesForNote(targetNote.id).map((r) => r.file),
+  );
+  const sharedLines: string[] = [];
+  for (const other of otherNotes) {
+    const shared = storage
+      .getReferencesForNote(other.id)
+      .filter((r) => targetFiles.has(r.file))
+      .map((r) => `  • \`${path.basename(r.file)}:${r.line}\` shared with "${other.name}"`);
+    sharedLines.push(...shared);
+  }
+
+  const sharedSection =
+    sharedLines.length > 0
+      ? `\nKnown shared file references between "${targetNote.name}" and other notes:\n${sharedLines.join("\n")}\n`
+      : `\nNo direct file overlaps detected — look for semantic or conceptual connections.\n`;
+
+  const messages = [
+    vscode.LanguageModelChatMessage.User(
+      `You are analyzing a developer's code notes to find meaningful connections.\n\n` +
+        `## Focus note\n${targetCtx}\n\n` +
+        `## Other notes\n${othersCtx}\n` +
+        sharedSection +
+        `\nFind connections between "${targetNote.name}" and the other notes. ` +
+        `For each connection explain: which notes are connected, what they share ` +
+        `(same files, related concepts, complementary annotations), and why the ` +
+        `connection is useful to know. Be specific — quote file names and annotations. ` +
+        `If there are no meaningful connections, say so plainly.`,
+    ),
+  ];
+
+  const response = await request.model.sendRequest(messages, {}, token);
+  for await (const chunk of response.stream) {
+    if (chunk instanceof vscode.LanguageModelTextPart) {
+      stream.markdown(chunk.value);
+    }
+  }
+
+  // Reference all notes that have overlapping files
+  const relatedNoteIds = new Set(
+    otherNotes
+      .filter((other) =>
+        storage
+          .getReferencesForNote(other.id)
+          .some((r) => targetFiles.has(r.file)),
+      )
+      .map((n) => n.id),
+  );
+
+  for (const note of notes) {
+    if (
+      note.id === targetNote.id ||
+      relatedNoteIds.has(note.id)
+    ) {
+      if (fs.existsSync(note.filePath)) {
+        stream.reference(vscode.Uri.file(note.filePath));
+      }
     }
   }
 
