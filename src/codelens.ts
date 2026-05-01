@@ -1,39 +1,33 @@
 import * as vscode from "vscode";
+import * as path from "path";
 import { createCommandName } from "./utils";
-import { NoteReference } from "./types";
+import { NotesStorage } from "./storage";
 
 export class NotesCodeLensProvider implements vscode.CodeLensProvider {
-  constructor(private readonly context: vscode.ExtensionContext) {}
+  constructor(private readonly storage: NotesStorage) {}
 
   private _onDidChangeCodeLenses = new vscode.EventEmitter<void>();
   readonly onDidChangeCodeLenses = this._onDidChangeCodeLenses.event;
 
-  provideCodeLenses(document: vscode.TextDocument) {
+  provideCodeLenses(document: vscode.TextDocument): vscode.CodeLens[] {
     const lenses: vscode.CodeLens[] = [];
+    const refs = this.storage.getReferencesForFile(document.uri.fsPath);
 
-    const noteIndex =
-      this.context.workspaceState.get<Record<string, NoteReference>>(
-        "noteIndex"
-      );
-
-    if (!noteIndex) {
-      return lenses;
-    }
-
-    for (const [key, ref] of Object.entries(noteIndex)) {
-      const refLine = ref.line;
-      if (ref.file !== document.uri.fsPath) {
+    for (const ref of refs) {
+      const note = this.storage.getNote(ref.noteId);
+      if (!note) {
         continue;
       }
 
-      const line = Number(refLine) - 1;
+      const line = ref.line - 1;
       const range = new vscode.Range(line, 0, line, 0);
+      const baseName = path.basename(ref.file);
 
       lenses.push(
         new vscode.CodeLens(range, {
           title: "View Note",
           command: createCommandName("viewNoteAt"),
-          arguments: [ref.notePath, ref.noteLine],
+          arguments: [note.filePath, ref.id, `${baseName}:${ref.line}`],
         })
       );
     }
@@ -41,10 +35,8 @@ export class NotesCodeLensProvider implements vscode.CodeLensProvider {
     return lenses;
   }
 
-  // Call this whenever notes change
   refresh() {
     this._onDidChangeCodeLenses.fire();
-    console.log("kyonru refresh");
   }
 }
 
@@ -52,10 +44,5 @@ export async function initCodeLensProvider(
   context: vscode.ExtensionContext,
   provider: NotesCodeLensProvider
 ) {
-  vscode.languages.registerCodeLensProvider(
-    { scheme: "file" }, // or restrict to certain languages
-    provider
-  );
-
-  vscode.EventEmitter;
+  vscode.languages.registerCodeLensProvider({ scheme: "file" }, provider);
 }

@@ -6,6 +6,7 @@ import { NoteItem, NotesTreeProvider } from "./treeView";
 import { createCommandName, getDefaultNotesDir, getNotesDir } from "./utils";
 import { NotesCodeLensProvider } from "./codelens";
 import { EXTENSION_NAME } from "./constants";
+import { NotesStorage } from "./storage";
 
 export function gerRefreshTreeCommand(
   notesTreeProvider: NotesTreeProvider,
@@ -22,69 +23,73 @@ export function gerRefreshTreeCommand(
 
 export function getCreateNoteCommand(
   context: vscode.ExtensionContext,
-  notesTreeProvider: NotesTreeProvider
+  storage: NotesStorage,
+  _notesTreeProvider: NotesTreeProvider
 ) {
   return vscode.commands.registerCommand(
     createCommandName("createNote"),
     async () => {
-      const NOTES_DIR = getNotesDir(context);
-
       const noteName = await vscode.window.showInputBox({
         prompt: "Enter note name",
         placeHolder: "my-note",
       });
 
-      if (noteName) {
-        const fileName = `${noteName}.md`;
-        const filePath = path.join(NOTES_DIR, fileName);
-
-        if (fs.existsSync(filePath)) {
-          vscode.window.showWarningMessage("Note already exists!");
-
-          context.workspaceState.update("currentNote", filePath);
-        } else {
-          fs.writeFileSync(filePath, `# ${noteName}\n\n`);
-          context.workspaceState.update("currentNote", filePath);
-          vscode.window.showInformationMessage(`Created note: ${fileName}`);
-        }
-
-        await vscode.commands.executeCommand(createCommandName("refreshTree"));
-        const doc = await vscode.workspace.openTextDocument(filePath);
-        await vscode.window.showTextDocument(doc);
+      if (!noteName) {
+        return;
       }
+
+      const slugId = noteName.replace(/[^a-z0-9-_]/gi, "-").toLowerCase();
+      const alreadyExists = storage.noteExists(slugId);
+      const note = await storage.createNote(noteName);
+
+      if (alreadyExists) {
+        vscode.window.showInformationMessage(
+          `Switched to existing note: ${note.name}`
+        );
+      } else {
+        vscode.window.showInformationMessage(`Created note: ${note.name}`);
+      }
+
+      context.workspaceState.update("currentNote", note.filePath);
+      await vscode.commands.executeCommand(createCommandName("refreshTree"));
+      const doc = await vscode.workspace.openTextDocument(note.filePath);
+      await vscode.window.showTextDocument(doc);
     }
   );
 }
 
 export function getSelectNoteCommand(
   context: vscode.ExtensionContext,
-  notesTreeProvider: NotesTreeProvider
+  storage: NotesStorage,
+  _notesTreeProvider: NotesTreeProvider
 ) {
-  // Command: Select existing note
   return vscode.commands.registerCommand(
     createCommandName("selectNote"),
     async () => {
-      const NOTES_DIR = getNotesDir(context);
-      const files = fs.readdirSync(NOTES_DIR).filter((f) => f.endsWith(".md"));
+      const notes = storage.getNotes();
 
-      if (files.length === 0) {
+      if (notes.length === 0) {
         vscode.window.showInformationMessage(
           "No notes found. Create one first!"
         );
         return;
       }
 
-      const selected = await vscode.window.showQuickPick(files, {
+      const items = notes.map((n) => ({
+        label: n.name,
+        description: `${storage.getReferencesForNote(n.id).length} refs`,
+        noteId: n.id,
+        filePath: n.filePath,
+      }));
+
+      const selected = await vscode.window.showQuickPick(items, {
         placeHolder: "Select a note",
       });
 
       if (selected) {
-        const NOTES_DIR = getNotesDir(context);
-
-        const currentNote = path.join(NOTES_DIR, selected);
-        context.workspaceState.update("currentNote", currentNote);
+        context.workspaceState.update("currentNote", selected.filePath);
         await vscode.commands.executeCommand(createCommandName("refreshTree"));
-        const doc = await vscode.workspace.openTextDocument(currentNote);
+        const doc = await vscode.workspace.openTextDocument(selected.filePath);
         await vscode.window.showTextDocument(doc);
       }
     }
@@ -93,13 +98,15 @@ export function getSelectNoteCommand(
 
 export function getAddReferenceCommand(
   context: vscode.ExtensionContext,
-  notesTreeProvider: NotesTreeProvider
+  storage: NotesStorage,
+  _notesTreeProvider: NotesTreeProvider
 ) {
   return vscode.commands.registerCommand(
     createCommandName("addReference"),
     async () => {
-      const currentNote = context.workspaceState.get<string>("currentNote");
-      if (!currentNote) {
+      const currentNotePath = context.workspaceState.get<string>("currentNote");
+
+      if (!currentNotePath) {
         const action = await vscode.window.showWarningMessage(
           "No note selected. Would you like to select one?",
           "Select Note",
@@ -124,30 +131,23 @@ export function getAddReferenceCommand(
       const selection = editor.selection;
       const selectedText = document.getText(selection);
       const lineNumber = selection.start.line + 1;
-      const fileName = path.basename(document.fileName);
 
-      // Get optional annotation text
       const annotation = await vscode.window.showInputBox({
         prompt: "Add annotation (optional)",
         placeHolder: "Enter your notes about this code...",
       });
 
-      // Build reference entry
-      let entry = `\n## ${fileName}:${lineNumber}\n\n`;
-      entry += `**Path:** \`${document.fileName}\`\n`;
-      entry += `</br>\n`;
-      entry += `**Line:** ${lineNumber}\n\n`;
+      // Derive noteId from the stored file path
+      const noteId = path.basename(currentNotePath, ".md");
 
-      if (annotation) {
-        entry += `**Note:** ${annotation}\n\n`;
-      }
-
-      entry += "```" + document.languageId + "\n";
-      entry += selectedText || document.lineAt(selection.start.line).text;
-      entry += "\n```\n";
-
-      // Append to note
-      fs.appendFileSync(currentNote, entry);
+      await storage.addReference(
+        noteId,
+        document.fileName,
+        lineNumber,
+        selectedText || document.lineAt(selection.start.line).text,
+        document.languageId,
+        annotation ?? ""
+      );
 
       await vscode.commands.executeCommand(createCommandName("refreshTree"));
       const result = await vscode.window.showInformationMessage(
@@ -183,17 +183,17 @@ export function getGoToReferenceCommand() {
   return vscode.commands.registerCommand(
     createCommandName("goToReference"),
     async (
-      relativePath: string,
+      referencePath: string,
       lineNumber: number,
-      filePath: string,
-      markdownLine: number
+      notePath: string,
+      referenceId: string
     ) => {
-      if (!fs.existsSync(relativePath)) {
-        vscode.window.showErrorMessage(`File not found: ${relativePath}`);
+      if (!fs.existsSync(referencePath)) {
+        vscode.window.showErrorMessage(`File not found: ${referencePath}`);
         return;
       }
 
-      const doc = await vscode.workspace.openTextDocument(relativePath);
+      const doc = await vscode.workspace.openTextDocument(referencePath);
       const editor = await vscode.window.showTextDocument(doc, {
         viewColumn: vscode.ViewColumn.One,
         preview: false,
@@ -206,29 +206,36 @@ export function getGoToReferenceCommand() {
         vscode.TextEditorRevealType.InCenter
       );
 
-      const previewDoc = await vscode.workspace.openTextDocument(filePath);
+      const noteDoc = await vscode.workspace.openTextDocument(notePath);
 
       await vscode.commands.executeCommand(
         "markdown.showPreviewToSide",
-        previewDoc.uri,
+        noteDoc.uri,
         { preserveFocus: true }
       );
 
-      const preview = await vscode.window.showTextDocument(previewDoc, {
+      // Find the reference heading in the note
+      const baseName = path.basename(referencePath);
+      const anchor = `## ${baseName}:${lineNumber}`;
+      const noteText = noteDoc.getText();
+      const anchorIdx = noteText.indexOf(anchor);
+
+      const noteEditor = await vscode.window.showTextDocument(noteDoc, {
         viewColumn: vscode.ViewColumn.Active,
         preview: false,
         preserveFocus: true,
       });
 
-      const previewPosition = new vscode.Position(markdownLine - 1, 0);
-      preview.selection = new vscode.Selection(
-        previewPosition,
-        previewPosition
-      );
-      preview.revealRange(
-        new vscode.Range(previewPosition, previewPosition),
-        vscode.TextEditorRevealType.InCenter
-      );
+      if (anchorIdx !== -1) {
+        const anchorLine = noteDoc.positionAt(anchorIdx).line;
+        const notePos = new vscode.Position(anchorLine, 0);
+        noteEditor.selection = new vscode.Selection(notePos, notePos);
+        noteEditor.revealRange(
+          new vscode.Range(notePos, notePos),
+          vscode.TextEditorRevealType.InCenter
+        );
+      }
+
       await vscode.commands.executeCommand(
         "workbench.action.closeActiveEditor"
       );
@@ -264,7 +271,8 @@ export function getOpenNotesDirCommand(context: vscode.ExtensionContext) {
 
 export function getDeleteNoteCommand(
   context: vscode.ExtensionContext,
-  notesTreeProvider: NotesTreeProvider,
+  storage: NotesStorage,
+  _notesTreeProvider: NotesTreeProvider,
   callback: Function
 ) {
   return vscode.commands.registerCommand(
@@ -275,6 +283,7 @@ export function getDeleteNoteCommand(
       }
 
       const currentNote = context.workspaceState.get("currentNote");
+      const noteId = path.basename(item.filePath, ".md");
 
       const confirm = await vscode.window.showWarningMessage(
         `Delete note "${item.label}"?`,
@@ -283,7 +292,8 @@ export function getDeleteNoteCommand(
       );
 
       if (confirm === "Delete") {
-        fs.unlinkSync(item.filePath);
+        await storage.deleteNote(noteId);
+
         if (currentNote === item.filePath) {
           context.workspaceState.update("currentNote", undefined);
           callback();
@@ -299,24 +309,33 @@ export function getDeleteNoteCommand(
 export function getViewNoteAtCommand() {
   return vscode.commands.registerCommand(
     createCommandName("viewNoteAt"),
-    async (notePath: string, noteLine: number) => {
+    // notePath: absolute path to the .md file (passed from codelens/treeView)
+    // anchor: "basename:line" heading to scroll to, e.g. "auth.ts:42"
+    async (notePath: string, _referenceId: string, anchor: string) => {
+      if (!fs.existsSync(notePath)) {
+        return;
+      }
+
       const doc = await vscode.workspace.openTextDocument(notePath);
       const editor = await vscode.window.showTextDocument(doc);
 
-      const pos = new vscode.Position(noteLine - 1, 0);
-      editor.selection = new vscode.Selection(pos, pos);
-      editor.revealRange(new vscode.Range(pos, pos));
+      if (anchor) {
+        const text = doc.getText();
+        const idx = text.indexOf(`## ${anchor}`);
+        if (idx !== -1) {
+          const pos = doc.positionAt(idx);
+          editor.selection = new vscode.Selection(pos, pos);
+          editor.revealRange(new vscode.Range(pos, pos));
+        }
+      }
     }
   );
 }
 
-export function getSearchNotesCommand(context: vscode.ExtensionContext) {
-  // Command: Search notes
+export function getSearchNotesCommand(storage: NotesStorage) {
   return vscode.commands.registerCommand(
     createCommandName("searchNotes"),
     async () => {
-      const NOTES_DIR = getNotesDir(context);
-
       const searchQuery = await vscode.window.showInputBox({
         prompt: "Search in notes (annotations, file names, code)",
         placeHolder: "Enter search term...",
@@ -327,196 +346,52 @@ export function getSearchNotesCommand(context: vscode.ExtensionContext) {
       }
 
       const query = searchQuery.toLowerCase();
-      const results: Array<{
-        noteName: string;
+
+      const items: Array<{
+        label: string;
+        description: string;
+        detail?: string;
         notePath: string;
-        matches: Array<{
-          type: "title" | "annotation" | "code" | "filename";
-          line: number;
-          fileName?: string;
-          content: string;
-          preview: string;
-        }>;
       }> = [];
 
-      // Search through all notes
-      const noteFiles = fs
-        .readdirSync(NOTES_DIR)
-        .filter((f) => f.endsWith(".md"));
-
-      for (const noteFile of noteFiles) {
-        const notePath = path.join(NOTES_DIR, noteFile);
-        const content = fs.readFileSync(notePath, "utf-8");
-        const lines = content.split("\n");
-        const noteName = path.basename(noteFile, ".md");
-        const noteMatches: (typeof results)[0]["matches"] = [];
-
-        // Check note title
-        if (noteName.toLowerCase().includes(query)) {
-          noteMatches.push({
-            type: "title",
-            line: 1,
-            content: noteName,
-            preview: `Note title: ${noteName}`,
+      for (const note of storage.getNotes()) {
+        if (note.name.toLowerCase().includes(query)) {
+          items.push({
+            label: `$(notebook) ${note.name}`,
+            description: `Note title: ${note.name}`,
+            notePath: note.filePath,
           });
         }
 
-        // Parse sections and search
-        let currentSection: {
-          fileName?: string;
-          lineNum?: number;
-          annotation?: string;
-          code?: string;
-        } = {};
-        let inCodeBlock = false;
-        let codeLines: string[] = [];
+        for (const ref of storage.getReferencesForNote(note.id)) {
+          const baseName = path.basename(ref.file);
 
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i];
-          const lineNum = i + 1;
-
-          // Detect section headers (## filename:line)
-          const sectionMatch = line.match(/^## (.+?):(\d+)/);
-          if (sectionMatch) {
-            // Process previous section if it had matches
-            if (currentSection.fileName) {
-              const sectionContent = [
-                currentSection.annotation,
-                currentSection.code,
-              ]
-                .filter(Boolean)
-                .join(" ")
-                .toLowerCase();
-
-              if (sectionContent.includes(query)) {
-                if (currentSection.annotation?.toLowerCase().includes(query)) {
-                  noteMatches.push({
-                    type: "annotation",
-                    line: lineNum,
-                    fileName: currentSection.fileName,
-                    content: currentSection.annotation!,
-                    preview: `${currentSection.fileName}:${currentSection.lineNum} - ${currentSection.annotation}`,
-                  });
-                }
-                if (currentSection.code?.toLowerCase().includes(query)) {
-                  noteMatches.push({
-                    type: "code",
-                    line: lineNum,
-                    fileName: currentSection.fileName,
-                    content: currentSection.code!,
-                    preview: `${currentSection.fileName}:${currentSection.lineNum} - Code snippet`,
-                  });
-                }
-              }
-            }
-
-            // Start new section
-            currentSection = {
-              fileName: sectionMatch[1],
-              lineNum: parseInt(sectionMatch[2]),
-              annotation: undefined,
-              code: undefined,
-            };
-            codeLines = [];
-            inCodeBlock = false;
+          if (ref.annotation.toLowerCase().includes(query)) {
+            items.push({
+              label: `$(note) ${note.name}`,
+              description: `${baseName}:${ref.line} - ${ref.annotation}`,
+              notePath: note.filePath,
+            });
+          } else if (ref.codeSnippet.toLowerCase().includes(query)) {
+            items.push({
+              label: `$(code) ${note.name}`,
+              description: `${baseName}:${ref.line} - Code snippet`,
+              detail: ref.codeSnippet.substring(0, 100),
+              notePath: note.filePath,
+            });
           }
-
-          // Extract annotation
-          const noteMatch = line.match(/\*\*Note:\*\* (.+)/);
-          if (noteMatch) {
-            currentSection.annotation = noteMatch[1];
-          }
-
-          // Track code blocks
-          if (line.startsWith("```")) {
-            inCodeBlock = !inCodeBlock;
-            continue;
-          }
-
-          if (inCodeBlock) {
-            codeLines.push(line);
-          }
-        }
-
-        // Process last section
-        if (currentSection.fileName) {
-          currentSection.code = codeLines.join("\n");
-          const sectionContent = [
-            currentSection.annotation,
-            currentSection.code,
-          ]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase();
-
-          if (sectionContent.includes(query)) {
-            if (currentSection.annotation?.toLowerCase().includes(query)) {
-              noteMatches.push({
-                type: "annotation",
-                line: lines.length,
-                fileName: currentSection.fileName,
-                content: currentSection.annotation!,
-                preview: `${currentSection.fileName}:${currentSection.lineNum} - ${currentSection.annotation}`,
-              });
-            }
-            if (currentSection.code?.toLowerCase().includes(query)) {
-              noteMatches.push({
-                type: "code",
-                line: lines.length,
-                fileName: currentSection.fileName,
-                content: currentSection.code!,
-                preview: `${currentSection.fileName}:${currentSection.lineNum} - Code snippet`,
-              });
-            }
-          }
-        }
-
-        if (noteMatches.length > 0) {
-          results.push({
-            noteName,
-            notePath,
-            matches: noteMatches,
-          });
         }
       }
 
-      // Display results
-      if (results.length === 0) {
+      if (items.length === 0) {
         vscode.window.showInformationMessage(
           `No results found for "${searchQuery}"`
         );
         return;
       }
 
-      // Create quick pick items
-      const items = results.flatMap((result) => {
-        return result.matches.map((match) => {
-          let icon = "$(file)";
-          if (match.type === "title") {
-            icon = "$(notebook)";
-          } else if (match.type === "annotation") {
-            icon = "$(note)";
-          } else if (match.type === "code") {
-            icon = "$(code)";
-          }
-
-          return {
-            label: `${icon} ${result.noteName}`,
-            description: match.preview,
-            detail:
-              match.type === "code"
-                ? match.content.substring(0, 100) +
-                  (match.content.length > 100 ? "..." : "")
-                : undefined,
-            notePath: result.notePath,
-          };
-        });
-      });
-
       const selected = await vscode.window.showQuickPick(items, {
-        placeHolder: `Found ${items.length} result${
-          items.length === 1 ? "" : "s"
-        } for "${searchQuery}"`,
+        placeHolder: `Found ${items.length} result${items.length === 1 ? "" : "s"} for "${searchQuery}"`,
         matchOnDescription: true,
         matchOnDetail: true,
       });
@@ -530,7 +405,10 @@ export function getSearchNotesCommand(context: vscode.ExtensionContext) {
 }
 
 export function getChangeNotesDirectoryCommand(
-  context: vscode.ExtensionContext
+  context: vscode.ExtensionContext,
+  storage: NotesStorage,
+  notesTreeProvider: NotesTreeProvider,
+  provider: NotesCodeLensProvider
 ) {
   return vscode.commands.registerCommand(
     createCommandName("changeNotesDirectory"),
@@ -577,7 +455,7 @@ export function getChangeNotesDirectoryCommand(
           newPath = selected[0].fsPath;
         }
       } else if (options.value === "default") {
-        newPath = ""; // Empty string will use default
+        newPath = "";
       } else if (options.value === "manual") {
         const NOTES_DIR = getNotesDir(context);
         const input = await vscode.window.showInputBox({
@@ -605,7 +483,10 @@ export function getChangeNotesDirectoryCommand(
           vscode.ConfigurationTarget.Global
         );
 
-        await vscode.commands.executeCommand(createCommandName("refreshTree"));
+        const resolvedDir = getNotesDir(context);
+        await storage.reload(resolvedDir);
+        notesTreeProvider.refresh();
+        provider.refresh();
       }
     }
   );

@@ -1,8 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import * as fs from "fs";
-import { createCommandName, getLineFromOffset, getNotesDir } from "./utils";
-import { NoteReference } from "./types";
+import { createCommandName } from "./utils";
+import { NotesStorage } from "./storage";
 
 export class NoteItem extends vscode.TreeItem {
   constructor(
@@ -25,9 +24,11 @@ export class NoteItem extends vscode.TreeItem {
   }
 }
 
-// Tree view data provider
 export class NotesTreeProvider implements vscode.TreeDataProvider<NoteItem> {
-  constructor(private readonly context: vscode.ExtensionContext) {}
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    private readonly storage: NotesStorage
+  ) {}
 
   private _onDidChangeTreeData: vscode.EventEmitter<
     NoteItem | undefined | null | void
@@ -45,122 +46,58 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteItem> {
   }
 
   getChildren(element?: NoteItem): Thenable<NoteItem[]> {
-    const NOTES_DIR = getNotesDir(this.context);
-
-    if (!fs.existsSync(NOTES_DIR)) {
-      return Promise.resolve([]);
-    }
-
     if (element) {
-      // Return sections/references within a note
-      return Promise.resolve(this.getNoteSections(element.filePath!));
-    } else {
-      // Return all note files
-      return Promise.resolve(this.getNoteFiles());
+      return Promise.resolve(this.getNoteSections(element));
     }
+    return Promise.resolve(this.getNoteFiles());
   }
 
   private getNoteFiles(): NoteItem[] {
-    const NOTES_DIR = getNotesDir(this.context);
+    const notes = this.storage.getNotes();
 
-    const files = fs
-      .readdirSync(NOTES_DIR)
-      .filter((f) => f.endsWith(".md"))
-      .sort();
-
-    return files.map((file) => {
-      const filePath = path.join(NOTES_DIR, file);
-      const stats = fs.statSync(filePath);
+    return notes.map((note) => {
+      const refCount = this.storage.getReferencesForNote(note.id).length;
       const item = new NoteItem(
-        path.basename(file, ".md"),
+        note.name,
         vscode.TreeItemCollapsibleState.Collapsed,
-        filePath,
+        note.filePath,
         "note"
       );
-      item.tooltip = `Modified: ${stats.mtime.toLocaleString()}`;
-      item.description = this.getReferencesCount(filePath);
+      item.tooltip = `Updated: ${new Date(note.updatedAt).toLocaleString()}`;
+      item.description = refCount === 1 ? "1 ref" : `${refCount} refs`;
       return item;
     });
   }
 
-  private getNoteSections(filePath: string): NoteItem[] {
-    const content = fs.readFileSync(filePath, "utf-8");
-    const sections: NoteItem[] = [];
+  private getNoteSections(noteItem: NoteItem): NoteItem[] {
+    const noteId = path.basename(noteItem.filePath ?? "", ".md");
+    const refs = this.storage.getReferencesForNote(noteId);
 
-    // Match sections like "## filename.ts:123"
-    const sectionRegex = /## (.+?):(\d+)/g;
-    let match;
-
-    const noteIndex =
-      this.context.workspaceState.get<Record<string, NoteReference>>(
-        "noteIndex"
-      ) || {};
-
-    while ((match = sectionRegex.exec(content)) !== null) {
-      const fileName = match[1];
-      const lineNumber = match[2];
-      const sectionStart = match.index;
-
-      // Extract the note content for this section
-      const nextSection = content.indexOf("\n## ", sectionStart + 1);
-      const sectionContent = content.substring(
-        sectionStart,
-        nextSection === -1 ? content.length : nextSection
-      );
-
-      // Extract the path from the section
-      const pathMatch = sectionContent.match(/\*\*Path:\*\* `(.+?)`/);
-      const relativePath = pathMatch ? pathMatch[1] : "";
-
-      // Extract annotation if exists
-      const noteMatch = sectionContent.match(/\*\*Note:\*\* (.+?)(?:\n|$)/);
-      const annotation = noteMatch ? noteMatch[1] : "";
-
-      const itemName = `${fileName}:${lineNumber}`;
-
-      const markdownLine = getLineFromOffset(content, sectionStart);
+    return refs.map((ref) => {
+      const baseName = path.basename(ref.file);
+      const label = `${baseName}:${ref.line}`;
 
       const item = new NoteItem(
-        itemName,
+        label,
         vscode.TreeItemCollapsibleState.None,
-        filePath,
+        noteItem.filePath,
         "reference",
-        relativePath,
-        parseInt(lineNumber)
+        ref.file,
+        ref.line
       );
 
-      item.tooltip = annotation || relativePath;
-      item.description = annotation
-        ? annotation.substring(0, 50) + (annotation.length > 50 ? "..." : "")
+      item.tooltip = ref.annotation || ref.file;
+      item.description = ref.annotation
+        ? ref.annotation.substring(0, 50) +
+          (ref.annotation.length > 50 ? "..." : "")
         : "";
       item.command = {
         command: createCommandName("goToReference"),
         title: "Go to Reference",
-        arguments: [relativePath, parseInt(lineNumber), filePath, markdownLine],
+        arguments: [ref.file, ref.line, noteItem.filePath, ref.id],
       };
 
-      noteIndex[`@${fileName}:${relativePath}:${lineNumber}`] = {
-        noteName: fileName,
-        notePath: filePath,
-        noteLine: markdownLine,
-        file: relativePath,
-        line: parseInt(lineNumber),
-      };
-
-      sections.push(item);
-    }
-
-    console.log("kyonru noteIndex", noteIndex);
-
-    this.context.workspaceState.update("noteIndex", noteIndex);
-
-    return sections;
-  }
-
-  private getReferencesCount(filePath: string): string {
-    const content = fs.readFileSync(filePath, "utf-8");
-    const matches = content.match(/## .+?:\d+/g);
-    const count = matches ? matches.length : 0;
-    return count === 1 ? "1 ref" : `${count} refs`;
+      return item;
+    });
   }
 }
