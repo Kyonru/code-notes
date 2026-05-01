@@ -23,7 +23,7 @@
 
 - [x] **Hover preview** — Show the annotation when hovering over a referenced line in the editor (beyond CodeLens)
 - [x] **Reference graph** — A webview showing a visual map of how notes connect to files and to each other
-- [ ] **References to this file** — A tree view filter or command showing all notes that reference the currently open file
+- [x] **References to this file** — A tree view filter or command showing all notes that reference the currently open file
 
 ## AI-Powered
 

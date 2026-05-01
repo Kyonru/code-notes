@@ -1315,3 +1315,58 @@ export function getSuggestNoteCommand(
     }
   );
 }
+
+export function getReferencesToThisFileCommand(storage: NotesStorage) {
+  return vscode.commands.registerCommand(
+    createCommandName("referencesToThisFile"),
+    async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showWarningMessage("No active file.");
+        return;
+      }
+
+      const filePath = editor.document.uri.fsPath;
+      const refs = storage.getReferencesForFile(filePath);
+
+      if (refs.length === 0) {
+        vscode.window.showInformationMessage(
+          "No notes reference this file."
+        );
+        return;
+      }
+
+      // Group by note
+      const noteMap = new Map<string, { note: NoteEntry; lines: number[] }>();
+      for (const ref of refs) {
+        const note = storage.getNote(ref.noteId);
+        if (!note) { continue; }
+        if (!noteMap.has(ref.noteId)) {
+          noteMap.set(ref.noteId, { note, lines: [] });
+        }
+        noteMap.get(ref.noteId)!.lines.push(ref.line);
+      }
+
+      const items = Array.from(noteMap.values()).map(({ note, lines }) => ({
+        label: note.name,
+        description: `Lines: ${lines.sort((a, b) => a - b).join(", ")}`,
+        noteId: note.id,
+        lines,
+      }));
+
+      const picked = await vscode.window.showQuickPick(items, {
+        placeHolder: "Notes referencing this file",
+        matchOnDescription: true,
+      });
+
+      if (picked) {
+        const notePath = path.join(
+          storage.getNotesDirectory(),
+          `${picked.noteId}.md`
+        );
+        const doc = await vscode.workspace.openTextDocument(notePath);
+        await vscode.window.showTextDocument(doc);
+      }
+    }
+  );
+}

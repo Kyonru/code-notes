@@ -28,6 +28,7 @@ import {
   getViewNoteCommand,
   getSearchNotesCommand,
   getChangeNotesDirectoryCommand,
+  getReferencesToThisFileCommand,
 } from "./commands";
 import { registerChatParticipant } from "./chat";
 import { initCodeLensProvider, NotesCodeLensProvider } from "./codelens";
@@ -176,6 +177,7 @@ export function activate(context: vscode.ExtensionContext) {
     toggleShowArchived,
     importFromClipboard,
     getShowReferenceGraphCommand(storage),
+    getReferencesToThisFileCommand(storage),
     treeView,
     statusBarItem,
   );

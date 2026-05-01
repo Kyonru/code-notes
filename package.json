@@ -175,6 +175,11 @@
         "command": "crosscodenotes.showReferenceGraph",
         "title": "Codebase Notebook: Show Reference Graph",
         "icon": "$(type-hierarchy)"
+      },
+      {
+        "command": "crosscodenotes.referencesToThisFile",
+        "title": "Codebase Notebook: References to This File",
+        "icon": "$(references)"
       }
     ],
     "menus": {
@@ -287,6 +292,10 @@
         {
           "command": "crosscodenotes.searchNotes",
           "group": "3_search@1"
+        },
+        {
+          "command": "crosscodenotes.referencesToThisFile",
+          "group": "3_search@2"
         }
       ]
     },
