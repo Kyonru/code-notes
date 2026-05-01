@@ -12,6 +12,11 @@ export function registerChatParticipant(
   context: vscode.ExtensionContext,
   storage: NotesStorage,
 ): void {
+  // Chat Participant API is VS Code-only; skip in Cursor/other forks
+  if (typeof vscode.chat === "undefined" || typeof vscode.chat.createChatParticipant !== "function") {
+    return;
+  }
+
   const participant = vscode.chat.createChatParticipant(
     PARTICIPANT_ID,
     makeHandler(context, storage),

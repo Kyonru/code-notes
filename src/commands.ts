@@ -8,47 +8,7 @@ import { NotesCodeLensProvider } from "./codelens";
 import { EXTENSION_NAME } from "./constants";
 import { NotesStorage } from "./storage";
 import { NoteEntry } from "./types";
-
-async function selectModel(): Promise<vscode.LanguageModelChat | undefined> {
-  const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
-  const preferredFamily = config.get<string>("modelFamily")?.trim();
-
-  const selector: vscode.LanguageModelChatSelector = { vendor: "copilot" };
-  if (preferredFamily) {
-    selector.family = preferredFamily;
-  }
-
-  let models = await vscode.lm.selectChatModels(selector);
-
-  // If preferred family yields nothing, fall back to all copilot models
-  if (models.length === 0 && preferredFamily) {
-    models = await vscode.lm.selectChatModels({ vendor: "copilot" });
-  }
-
-  if (models.length === 0) {
-    vscode.window.showErrorMessage(
-      "No language model available. Make sure GitHub Copilot is active."
-    );
-    return undefined;
-  }
-
-  if (models.length === 1) {
-    return models[0];
-  }
-
-  // Let user pick from available models
-  const items = models.map((m) => ({
-    label: m.name,
-    description: m.family,
-    model: m,
-  }));
-
-  const picked = await vscode.window.showQuickPick(items, {
-    placeHolder: "Select a language model",
-  });
-
-  return picked?.model;
-}
+import { getLMProvider, getExternalProvider } from "./lm";
 
 export function gerRefreshTreeCommand(
   notesTreeProvider: NotesTreeProvider,
@@ -1223,33 +1183,25 @@ export function getSuggestNoteCommand(
           cancellable: true,
         },
         async (_progress, cancelToken) => {
-          const model = await selectModel();
-          if (!model) {
-            return;
-          }
+          const lm = getLMProvider();
 
-          const messages = [
-            vscode.LanguageModelChatMessage.User(
-              `You are helping a developer file a code reference into the right note.\n\n` +
-              `## Existing notes\n${notesSummary}\n\n` +
-              `## Code to file\nFile: ${baseName}, Line: ${lineNumber}\n` +
-              `\`\`\`${language}\n${codeSnippet}\n\`\`\`\n\n` +
-              `## Instructions\nAvailable note IDs: ${noteIds}\n` +
-              `Respond in exactly this format with no preamble or extra text:\n` +
-              `NOTE: <best-matching note-id>\n` +
-              `ANNOTATION: <1–2 sentence annotation for this code>\n` +
-              `REASON: <1 sentence explaining why this note fits best>`
-            ),
-          ];
+          const prompt =
+            `You are helping a developer file a code reference into the right note.\n\n` +
+            `## Existing notes\n${notesSummary}\n\n` +
+            `## Code to file\nFile: ${baseName}, Line: ${lineNumber}\n` +
+            `\`\`\`${language}\n${codeSnippet}\n\`\`\`\n\n` +
+            `## Instructions\nAvailable note IDs: ${noteIds}\n` +
+            `Respond in exactly this format with no preamble or extra text:\n` +
+            `NOTE: <best-matching note-id>\n` +
+            `ANNOTATION: <1–2 sentence annotation for this code>\n` +
+            `REASON: <1 sentence explaining why this note fits best>`;
 
           let raw = "";
           try {
-            const response = await model.sendRequest(messages, {}, cancelToken);
-            for await (const chunk of response.stream) {
-              if (chunk instanceof vscode.LanguageModelTextPart) {
-                raw += chunk.value;
-              }
-            }
+            raw = await lm.sendRequest(
+              [{ role: "user", content: prompt }],
+              cancelToken
+            );
           } catch (err: any) {
             if (err instanceof vscode.CancellationError) {
               return;
@@ -1691,30 +1643,33 @@ export function getAutoTagCommand(
           cancellable: true,
         },
         async (_progress, cancelToken) => {
-          const model = await selectModel();
-          if (!model) {
-            return;
-          }
+          const lm = getLMProvider();
 
-          const messages = [
-            vscode.LanguageModelChatMessage.User(
-              `You are helping a developer tag a code research note.\n\n` +
-              `## Note: "${note.name}"\n` +
-              `Current tags: ${note.tags?.length ? note.tags.join(", ") : "none"}\n\n` +
-              `## References in this note\n${refsSummary || "No references yet."}\n\n` +
-              `## Context\n${existingTagsList}\n\n` +
-              `## Instructions\n` +
-              `Suggest 2-5 short, lowercase tags for this note based on its content and references.\n` +
-              `Prefer reusing existing tags when they fit. Tags should be single words or hyphenated (e.g., "auth", "error-handling", "perf").\n` +
-              `Respond with ONLY a comma-separated list of tags, nothing else.`
-            ),
-          ];
-
-          const response = await model.sendRequest(messages, {}, cancelToken);
+          const prompt =
+            `You are helping a developer tag a code research note.\n\n` +
+            `## Note: "${note.name}"\n` +
+            `Current tags: ${note.tags?.length ? note.tags.join(", ") : "none"}\n\n` +
+            `## References in this note\n${refsSummary || "No references yet."}\n\n` +
+            `## Context\n${existingTagsList}\n\n` +
+            `## Instructions\n` +
+            `Suggest 2-5 short, lowercase tags for this note based on its content and references.\n` +
+            `Prefer reusing existing tags when they fit. Tags should be single words or hyphenated (e.g., "auth", "error-handling", "perf").\n` +
+            `Respond with ONLY a comma-separated list of tags, nothing else.`;
 
           let responseText = "";
-          for await (const chunk of response.text) {
-            responseText += chunk;
+          try {
+            responseText = await lm.sendRequest(
+              [{ role: "user", content: prompt }],
+              cancelToken
+            );
+          } catch (err: any) {
+            if (err instanceof vscode.CancellationError) {
+              return;
+            }
+            vscode.window.showErrorMessage(
+              `Language model error: ${err.message}`
+            );
+            return;
           }
 
           const suggestedTags = responseText
@@ -1803,28 +1758,31 @@ export function getAskNotesCommand(storage: NotesStorage) {
           cancellable: true,
         },
         async (_progress, cancelToken) => {
-          const model = await selectModel();
-          if (!model) {
-            return;
-          }
+          const lm = getLMProvider();
 
-          const messages = [
-            vscode.LanguageModelChatMessage.User(
-              `You are a helpful assistant that answers questions about a developer's code research notes.\n\n` +
-              `## All Notes\n${notesSummary}\n\n` +
-              `## Question\n${question}\n\n` +
-              `## Instructions\n` +
-              `Answer the question based ONLY on the notes and references above.\n` +
-              `Be concise and specific. Reference note names in quotes.\n` +
-              `If no note matches, say so clearly.`
-            ),
-          ];
-
-          const response = await model.sendRequest(messages, {}, cancelToken);
+          const prompt =
+            `You are a helpful assistant that answers questions about a developer's code research notes.\n\n` +
+            `## All Notes\n${notesSummary}\n\n` +
+            `## Question\n${question}\n\n` +
+            `## Instructions\n` +
+            `Answer the question based ONLY on the notes and references above.\n` +
+            `Be concise and specific. Reference note names in quotes.\n` +
+            `If no note matches, say so clearly.`;
 
           let responseText = "";
-          for await (const chunk of response.text) {
-            responseText += chunk;
+          try {
+            responseText = await lm.sendRequest(
+              [{ role: "user", content: prompt }],
+              cancelToken
+            );
+          } catch (err: any) {
+            if (err instanceof vscode.CancellationError) {
+              return;
+            }
+            vscode.window.showErrorMessage(
+              `Language model error: ${err.message}`
+            );
+            return;
           }
 
           // Show answer in an information message with option to see full response
@@ -1919,10 +1877,7 @@ export function getRefreshStaleAnnotationsCommand(
           cancellable: true,
         },
         async (_progress, cancelToken) => {
-          const model = await selectModel();
-          if (!model) {
-            return;
-          }
+          const lm = getLMProvider();
           let refreshed = 0;
 
           for (const item of selected) {
@@ -1937,28 +1892,23 @@ export function getRefreshStaleAnnotationsCommand(
             }
 
             const baseName = path.basename(ref.file);
-            const messages = [
-              vscode.LanguageModelChatMessage.User(
-                `You are helping a developer update a code annotation.\n\n` +
-                `## Original code\n\`\`\`${ref.language}\n${ref.codeSnippet}\n\`\`\`\n\n` +
-                `## Original annotation\n${ref.annotation}\n\n` +
-                `## Updated code (current)\n\`\`\`${ref.language}\n${stale.currentCode}\n\`\`\`\n\n` +
-                `## Instructions\n` +
-                `The code at ${baseName}:${ref.line} has changed. ` +
-                `Write a new 1-2 sentence annotation that accurately describes the UPDATED code. ` +
-                `Keep the same style and level of detail as the original annotation. ` +
-                `Respond with ONLY the new annotation text, no preamble.`
-              ),
-            ];
+            const prompt =
+              `You are helping a developer update a code annotation.\n\n` +
+              `## Original code\n\`\`\`${ref.language}\n${ref.codeSnippet}\n\`\`\`\n\n` +
+              `## Original annotation\n${ref.annotation}\n\n` +
+              `## Updated code (current)\n\`\`\`${ref.language}\n${stale.currentCode}\n\`\`\`\n\n` +
+              `## Instructions\n` +
+              `The code at ${baseName}:${ref.line} has changed. ` +
+              `Write a new 1-2 sentence annotation that accurately describes the UPDATED code. ` +
+              `Keep the same style and level of detail as the original annotation. ` +
+              `Respond with ONLY the new annotation text, no preamble.`;
 
             try {
-              const response = await model.sendRequest(messages, {}, cancelToken);
-              let newAnnotation = "";
-              for await (const chunk of response.text) {
-                newAnnotation += chunk;
-              }
+              const newAnnotation = (await lm.sendRequest(
+                [{ role: "user", content: prompt }],
+                cancelToken
+              )).trim();
 
-              newAnnotation = newAnnotation.trim();
               if (newAnnotation) {
                 ref.annotation = newAnnotation;
                 ref.codeSnippet = stale.currentCode;
@@ -2036,6 +1986,39 @@ export function getDeleteAnnotationCommand(
       notesTreeProvider.refresh();
       provider.refresh();
       vscode.window.showInformationMessage("Annotation deleted.");
+    }
+  );
+}
+
+export function getSetAiApiKeyCommand() {
+  return vscode.commands.registerCommand(
+    createCommandName("setAiApiKey"),
+    async () => {
+      const key = await vscode.window.showInputBox({
+        prompt: "Enter your AI API key",
+        placeHolder: "sk-…",
+        password: true,
+        ignoreFocusOut: true,
+      });
+
+      if (!key) {
+        return;
+      }
+
+      const provider = getExternalProvider();
+      await provider.setApiKey(key);
+      vscode.window.showInformationMessage("AI API key saved securely.");
+    }
+  );
+}
+
+export function getClearAiApiKeyCommand() {
+  return vscode.commands.registerCommand(
+    createCommandName("clearAiApiKey"),
+    async () => {
+      const provider = getExternalProvider();
+      await provider.clearApiKey();
+      vscode.window.showInformationMessage("AI API key removed.");
     }
   );
 }

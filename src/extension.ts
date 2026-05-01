@@ -37,6 +37,8 @@ import {
   getAskNotesCommand,
   getRefreshStaleAnnotationsCommand,
   getDeleteAnnotationCommand,
+  getSetAiApiKeyCommand,
+  getClearAiApiKeyCommand,
 } from "./commands";
 import { registerChatParticipant } from "./chat";
 import { initCodeLensProvider, NotesCodeLensProvider } from "./codelens";
@@ -46,9 +48,12 @@ import { initInlineCompletionProvider } from "./inlineCompletion";
 import { NotesStorage } from "./storage";
 import { migrateIfNeeded } from "./migration";
 import { initLineTracker } from "./lineTracker";
+import { initLMProvider } from "./lm";
 
 export function activate(context: vscode.ExtensionContext) {
   const notesDir = getNotesDir(context);
+
+  initLMProvider(context);
 
   const storage = new NotesStorage(notesDir);
 
@@ -194,6 +199,8 @@ export function activate(context: vscode.ExtensionContext) {
     getAskNotesCommand(storage),
     getRefreshStaleAnnotationsCommand(storage, notesTreeProvider, provider),
     getDeleteAnnotationCommand(storage, notesTreeProvider, provider),
+    getSetAiApiKeyCommand(),
+    getClearAiApiKeyCommand(),
     treeView,
     statusBarItem,
   );

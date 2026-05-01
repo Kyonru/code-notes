@@ -9,7 +9,7 @@
   "icon": "icon.png",
   "publisher": "SolenodonteLabs",
   "engines": {
-    "vscode": "^1.107.0"
+    "vscode": "^1.85.0"
   },
   "categories": [
     "Other"
@@ -50,6 +50,34 @@
           "type": "string",
           "default": "",
           "markdownDescription": "Preferred language model family for AI features (e.g., `gpt-4o`, `gpt-4o-mini`, `claude-sonnet`). Leave empty to choose from all available models.",
+          "scope": "application"
+        },
+        "crosscodenotes.aiProvider": {
+          "type": "string",
+          "default": "auto",
+          "enum": [
+            "auto",
+            "vscode",
+            "external"
+          ],
+          "enumDescriptions": [
+            "Auto-detect: use VS Code LM API if available, otherwise use external API",
+            "Always use VS Code Language Model API (requires GitHub Copilot)",
+            "Always use external API (OpenAI-compatible endpoint)"
+          ],
+          "markdownDescription": "Which AI provider to use for language model features.",
+          "scope": "application"
+        },
+        "crosscodenotes.aiEndpoint": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Base URL for external AI API (OpenAI-compatible). Example: `https://api.openai.com/v1` or `http://localhost:11434/v1` (Ollama).",
+          "scope": "application"
+        },
+        "crosscodenotes.aiModel": {
+          "type": "string",
+          "default": "gpt-4o",
+          "markdownDescription": "Model name to use with external AI provider (e.g., `gpt-4o`, `claude-sonnet-4-20250514`, `llama3`).",
           "scope": "application"
         }
       }
@@ -232,6 +260,14 @@
         "command": "crosscodenotes.deleteAnnotation",
         "title": "Codebase Notebook: Delete Annotation",
         "icon": "$(trash)"
+      },
+      {
+        "command": "crosscodenotes.setAiApiKey",
+        "title": "Codebase Notebook: Set AI API Key"
+      },
+      {
+        "command": "crosscodenotes.clearAiApiKey",
+        "title": "Codebase Notebook: Clear AI API Key"
       }
     ],
     "menus": {
@@ -472,7 +508,7 @@
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
-    "@types/vscode": "^1.107.0",
+    "@types/vscode": "^1.85.0",
     "@vscode/test-cli": "^0.0.11",
     "@vscode/test-electron": "^2.5.2",
     "eslint": "^9.39.1",

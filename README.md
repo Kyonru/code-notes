@@ -30,6 +30,13 @@ Codebase Notebook is a VS Code extension that lets you take structured notes acr
 - Auto-update line numbers when code shifts (file change watcher)
 - Hover preview — see annotation when hovering over referenced lines
 
+### 🔌 AI Provider Flexibility
+
+- **VS Code (default)** — Uses built-in Language Model API (GitHub Copilot). Zero config.
+- **External API** — OpenAI, Anthropic, Ollama, or any OpenAI-compatible endpoint. Works in Cursor and other VS Code forks.
+- **Auto-detect** — Automatically picks VS Code LM if available, prompts for external config otherwise.
+- API keys stored securely via VS Code SecretStorage (never in plaintext settings).
+
 ### 🤖 AI-Powered (Chat Participant)
 
 Use `@notebook` in VS Code Chat with these commands:
@@ -84,6 +91,9 @@ Additional AI commands (Command Palette):
 | `crosscodenotes.notesDirectory`     | Custom directory for storing notes (supports `~`). Leave empty for default.                            |
 | `crosscodenotes.useWorkspaceFolder` | Store notes in `.codenotes/` inside the workspace root for team sharing.                               |
 | `crosscodenotes.modelFamily`        | Preferred AI model family (e.g., `gpt-4o`, `claude-sonnet`). Leave empty to choose from all available. |
+| `crosscodenotes.aiProvider`         | AI provider: `auto` (default), `vscode`, or `external`. Auto-detects VS Code LM or falls back to API. |
+| `crosscodenotes.aiEndpoint`         | Base URL for external AI API (OpenAI-compatible, e.g., `https://api.openai.com/v1` or Ollama).         |
+| `crosscodenotes.aiModel`            | Model name for external provider (e.g., `gpt-4o`, `claude-sonnet-4-20250514`, `llama3`).                    |
 
 ## 🎯 Core Commands
 
@@ -108,6 +118,8 @@ Additional AI commands (Command Palette):
 | `Codebase Notebook: Add Comment`               | Add a comment to a reference                    |
 | `Codebase Notebook: View Comments`             | View/delete comments on a reference             |
 | `Codebase Notebook: Delete Annotation`         | Delete a reference and its section from the note|
+| `Codebase Notebook: Set AI API Key`            | Store API key securely for external AI provider |
+| `Codebase Notebook: Clear AI API Key`          | Remove stored AI API key                        |
 | `Codebase Notebook: Change Notes Directory`    | Select / change the directory used for notes    |
 | `Codebase Notebook: Open Notes Directory`      | Open storage folder for notes                   |
 | `Codebase Notebook: Delete Note`               | Remove note                                     |

@@ -3,6 +3,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { NotesStorage } from "./storage";
 import { getNotesDir } from "./utils";
+import { getLMProvider } from "./lm";
 
 export class NotesInlineCompletionProvider
   implements vscode.InlineCompletionItemProvider
@@ -98,30 +99,15 @@ export class NotesInlineCompletionProvider
       `If no good suggestion comes to mind, return empty string.`;
 
     try {
-      const models = await vscode.lm.selectChatModels({
-        vendor: "copilot",
-        family: "gpt-4",
-      });
-
-      if (models.length === 0) {
+      const lm = getLMProvider();
+      if (!lm.isAvailable()) {
         return [];
       }
 
-      const messages = [vscode.LanguageModelChatMessage.User(prompt)];
-
-      const response = await models[0].sendRequest(messages, {}, token);
-
-      let suggestion = "";
-      for await (const chunk of response.stream) {
-        if (chunk instanceof vscode.LanguageModelTextPart) {
-          suggestion += chunk.value;
-        }
-        if (token.isCancellationRequested) {
-          return [];
-        }
-      }
-
-      suggestion = suggestion.trim();
+      const suggestion = (await lm.sendRequest(
+        [{ role: "user", content: prompt }],
+        token
+      )).trim();
 
       if (suggestion && !suggestion.includes("\n")) {
         return [
