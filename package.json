@@ -45,6 +45,12 @@
           "default": false,
           "markdownDescription": "Store notes in a `.codenotes/` folder inside the workspace root. When enabled, notes are committed with the repo and shared with the team.",
           "scope": "resource"
+        },
+        "crosscodenotes.modelFamily": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Preferred language model family for AI features (e.g., `gpt-4o`, `gpt-4o-mini`, `claude-sonnet`). Leave empty to choose from all available models.",
+          "scope": "application"
         }
       }
     },

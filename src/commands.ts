@@ -9,6 +9,47 @@ import { EXTENSION_NAME } from "./constants";
 import { NotesStorage } from "./storage";
 import { NoteEntry } from "./types";
 
+async function selectModel(): Promise<vscode.LanguageModelChat | undefined> {
+  const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
+  const preferredFamily = config.get<string>("modelFamily")?.trim();
+
+  const selector: vscode.LanguageModelChatSelector = { vendor: "copilot" };
+  if (preferredFamily) {
+    selector.family = preferredFamily;
+  }
+
+  let models = await vscode.lm.selectChatModels(selector);
+
+  // If preferred family yields nothing, fall back to all copilot models
+  if (models.length === 0 && preferredFamily) {
+    models = await vscode.lm.selectChatModels({ vendor: "copilot" });
+  }
+
+  if (models.length === 0) {
+    vscode.window.showErrorMessage(
+      "No language model available. Make sure GitHub Copilot is active."
+    );
+    return undefined;
+  }
+
+  if (models.length === 1) {
+    return models[0];
+  }
+
+  // Let user pick from available models
+  const items = models.map((m) => ({
+    label: m.name,
+    description: m.family,
+    model: m,
+  }));
+
+  const picked = await vscode.window.showQuickPick(items, {
+    placeHolder: "Select a language model",
+  });
+
+  return picked?.model;
+}
+
 export function gerRefreshTreeCommand(
   notesTreeProvider: NotesTreeProvider,
   provider: NotesCodeLensProvider
@@ -1182,19 +1223,10 @@ export function getSuggestNoteCommand(
           cancellable: true,
         },
         async (_progress, cancelToken) => {
-          const models = await vscode.lm.selectChatModels({
-            vendor: "copilot",
-            family: "gpt-4o",
-          });
-
-          if (models.length === 0) {
-            vscode.window.showErrorMessage(
-              "No language model available. Make sure GitHub Copilot is active."
-            );
+          const model = await selectModel();
+          if (!model) {
             return;
           }
-
-          const model = models[0];
 
           const messages = [
             vscode.LanguageModelChatMessage.User(
@@ -1659,19 +1691,10 @@ export function getAutoTagCommand(
           cancellable: true,
         },
         async (_progress, cancelToken) => {
-          const models = await vscode.lm.selectChatModels({
-            vendor: "copilot",
-            family: "gpt-4o",
-          });
-
-          if (models.length === 0) {
-            vscode.window.showErrorMessage(
-              "No language model available. Make sure GitHub Copilot is active."
-            );
+          const model = await selectModel();
+          if (!model) {
             return;
           }
-
-          const model = models[0];
 
           const messages = [
             vscode.LanguageModelChatMessage.User(
@@ -1780,19 +1803,10 @@ export function getAskNotesCommand(storage: NotesStorage) {
           cancellable: true,
         },
         async (_progress, cancelToken) => {
-          const models = await vscode.lm.selectChatModels({
-            vendor: "copilot",
-            family: "gpt-4o",
-          });
-
-          if (models.length === 0) {
-            vscode.window.showErrorMessage(
-              "No language model available. Make sure GitHub Copilot is active."
-            );
+          const model = await selectModel();
+          if (!model) {
             return;
           }
-
-          const model = models[0];
 
           const messages = [
             vscode.LanguageModelChatMessage.User(
@@ -1905,19 +1919,10 @@ export function getRefreshStaleAnnotationsCommand(
           cancellable: true,
         },
         async (_progress, cancelToken) => {
-          const models = await vscode.lm.selectChatModels({
-            vendor: "copilot",
-            family: "gpt-4o",
-          });
-
-          if (models.length === 0) {
-            vscode.window.showErrorMessage(
-              "No language model available. Make sure GitHub Copilot is active."
-            );
+          const model = await selectModel();
+          if (!model) {
             return;
           }
-
-          const model = models[0];
           let refreshed = 0;
 
           for (const item of selected) {
